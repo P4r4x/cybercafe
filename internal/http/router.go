@@ -29,7 +29,16 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 		booksGroup := api.Group("/books")
 		{
 			booksGroup.POST("/query", bookHandler.BookQueryHandler)
-			booksGroup.POST("/borrow", bookHandler.BorrowBookHandler)
+			booksGroup.POST("/borrow", func(c *gin.Context) {
+				// 给请求上下文自动附加 action 参数
+				c.Set("action", "borrow")
+				bookHandler.BookChangeRemainHandler(c)
+			})
+			booksGroup.POST("/return", func(c *gin.Context) {
+				// 给请求上下文自动附加 action 参数
+				c.Set("action", "return")
+				bookHandler.BookChangeRemainHandler(c)
+			})
 		}
 	}
 }

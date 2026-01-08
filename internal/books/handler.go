@@ -10,6 +10,31 @@ type BookHandler struct {
 	svc *BookService
 }
 
+const (
+	Borrow = "borrow"
+	Return = "return"
+)
+
+// ErrorHandler 借还书解释器的错误映射
+func ErrorHandler(err error, c *gin.Context) {
+	switch {
+	case errors.Is(err, ErrBookNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+
+	case errors.Is(err, ErrNotEnoughRemain):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+
+	case errors.Is(err, ErrExceedTotal):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+
+	case errors.Is(err, ErrInvalidAmount):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+	}
+	return
+}
 func NewHandler(svc *BookService) *BookHandler {
 	return &BookHandler{svc: svc}
 }
@@ -41,10 +66,10 @@ func (h *BookHandler) BookQueryHandler(c *gin.Context) {
 	c.JSON(200, books)
 }
 
-// BorrowBookHandler
-// POST /api/books/borrow: 借书的接口, 接受唯一参数, 获取图书的库存信息, 尝试借;
-func (h *BookHandler) BorrowBookHandler(c *gin.Context) {
-	var req BookBorrowRequest
+// BookChangeRemainHandler
+// POST /api/books/borrow: 借 / 还书的接口, 接受唯一参数, 获取图书的库存信息, 尝试借 / 还;
+func (h *BookHandler) BookChangeRemainHandler(c *gin.Context) {
+	var req BookChangeRemainRequest
 
 	// 1. 解析 JSON
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,47 +78,45 @@ func (h *BookHandler) BorrowBookHandler(c *gin.Context) {
 	}
 
 	// 2. 基础参数校验
-	//借书数必须大于 0
+	// 改变量必须大于 0
 	if req.Amount <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "amount must be greater than 0"})
 		return
 	}
-
 	// 只能接受 id 参数, 防止多结果
 	if req.ID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "book id is required"})
 		return
 	}
 
-	// 3. 载入查询参数
-	query := BookBorrowRequest{
+	// 载入查询参数
+	query := BookChangeRemainRequest{
 		ID:     req.ID,
-		Amount: req.Amount}
-
-	// 4. 调用 BookService
-	_, err := h.svc.BookBorrowService(c.Request.Context(), query)
-
-	// 5. 错误处理, 状态码映射
-	if err != nil {
-		switch {
-		case errors.Is(err, ErrBookNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-
-		case errors.Is(err, ErrNotEnoughRemain):
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-
-		case errors.Is(err, ErrExceedTotal):
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-
-		case errors.Is(err, ErrInvalidAmount):
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
-		}
-		return
+		Amount: req.Amount,
 	}
 
-	// 6. 成功响应
-	c.JSON(http.StatusOK, gin.H{"message": "borrow success"})
+	action, _ := c.Get("action")
+	switch action {
+	case Borrow:
+		// 3. 调用对应的 BookService
+		_, err := h.svc.BookBorrowService(c.Request.Context(), query)
+		if err != nil {
+			// 4. 错误处理, 状态码映射
+			ErrorHandler(err, c)
+			return
+		}
+	case Return:
+		// 3. 调用对应的 BookService
+		_, err := h.svc.BookReturnService(c.Request.Context(), query)
+		if err != nil {
+			// 4. 错误处理, 状态码映射
+			ErrorHandler(err, c)
+			return
+		}
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid action"})
+	}
+
+	// 5. 成功响应
+	c.JSON(http.StatusOK, gin.H{"message": "action success"})
 }

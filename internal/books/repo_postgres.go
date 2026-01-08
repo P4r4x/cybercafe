@@ -81,21 +81,23 @@ func (r *PostgresRepo) Find(ctx context.Context, q BookQuery) ([]*Book, error) {
 // AddRemain 增加 / 减少 图书余量 , 基于预编译和参数化查询
 func (r *PostgresRepo) AddRemain(ctx context.Context, bookID BookID, delta int) error {
 	const q = ` 
-		WITH target AS ( 
-			SELECT id, remain, total 
-			FROM books 
-			WHERE id = $2 ), 
-		updated AS ( 
-			UPDATE books 
-			SET remain = remain + $1 
-			FROM target 
-			WHERE books.id = target.id 
-			AND target.remain + $1 >= 0 
-			AND target.remain + $1 <= target.total 
-		RETURNING books.id ) 
-		SELECT 
-			EXISTS (SELECT 1 FROM target) AS exists, 
-			EXISTS (SELECT 1 FROM updated) AS updated;`
+		WITH target AS (
+			SELECT id, remain, total
+			FROM books
+			WHERE id = $2
+		),
+		updated AS (
+			UPDATE books b
+			SET remain = t.remain + $1
+			FROM target t
+			WHERE b.id = t.id
+			  AND t.remain + $1 >= 0
+			  AND t.remain + $1 <= t.total
+			RETURNING b.id
+)
+SELECT
+    EXISTS (SELECT 1 FROM target) AS exists,
+    EXISTS (SELECT 1 FROM updated) AS updated;`
 	var exists bool
 	var updated bool
 	err := r.db.QueryRowContext(ctx, q, delta, bookID).Scan(&exists, &updated)

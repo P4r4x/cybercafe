@@ -17,8 +17,14 @@ type BookQuery struct {
 	Publisher *string `json:"publisher"`
 }
 
-// BookBorrowRequest 借阅图书参数
-type BookBorrowRequest struct {
+// BookChangeRemainRequest 借阅图书参数
+type BookChangeRemainRequest struct {
+	ID     BookID `json:"id"`
+	Amount int    `json:"amount"`
+}
+
+// BookReturnRequest 归还图书参数
+type BookReturnRequest struct {
 	ID     BookID `json:"id"`
 	Amount int    `json:"amount"`
 }
@@ -52,7 +58,8 @@ func (s *BookService) BookQueryService(ctx context.Context, q BookQuery) ([]*Boo
 }
 
 // BookBorrowService 借书服务
-func (s *BookService) BookBorrowService(ctx context.Context, q BookBorrowRequest) (interface{}, error) {
+func (s *BookService) BookBorrowService(ctx context.Context, q BookChangeRemainRequest) (interface{}, error) {
+
 	// 载入查询参数, 必须是唯一的参数
 	bookId := &q.ID
 	amount := &q.Amount
@@ -69,4 +76,25 @@ func (s *BookService) BookBorrowService(ctx context.Context, q BookBorrowRequest
 		return nil, err
 	}
 	return "success", nil
+}
+
+// BookReturnService 归还服务
+func (s *BookService) BookReturnService(ctx context.Context, q BookChangeRemainRequest) (interface{}, error) {
+	// 载入查询参数, 必须是唯一的参数
+	bookId := &q.ID
+	amount := &q.Amount
+
+	// 参数校验, 注意还书时传入的是正数
+	if *amount <= 0 {
+		return nil, ErrInvalidAmount
+	}
+	if bookId == nil {
+		return nil, ErrBookNotFound
+	}
+	err := s.repo.AddRemain(ctx, *bookId, *amount)
+	if err != nil {
+		return nil, err
+	}
+	return "success", nil
+
 }
