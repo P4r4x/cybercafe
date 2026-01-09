@@ -4,5 +4,14 @@ package auth
 type Credential struct {
 	UserID       string
 	PasswordHash string
-	Salt         string
+}
+
+type LoginInfo struct {
+	Email    *string `json:"email" binding:"required"`
+	Username *string `json:"username" binding:"required"`
+	Password *string `json:"password" binding:"required"`
+}
+
+type LoginResult struct {
+	Token string `json:"token"`
 }
