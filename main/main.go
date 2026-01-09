@@ -1,8 +1,8 @@
 package main
 
 import (
-	"CyberCafe/internal/http"
 	"CyberCafe/internal/infra/db"
+	"CyberCafe/internal/router"
 	"github.com/gin-gonic/gin"
 	"log"
 )
@@ -24,7 +24,7 @@ func main() {
 
 	// ====== 初始化路由 ======
 
-	http.InitRoutes(engine, pg)
+	router.InitRoutes(engine, pg)
 
 	// ====== 启动服务 ======
 

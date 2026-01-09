@@ -13,7 +13,7 @@ type PostgresRepo struct {
 	db *sql.DB
 }
 
-func NewPostgresRepo(db *sql.DB) Repository {
+func NewPostgresRepo(db *sql.DB) BookRepo {
 	return &PostgresRepo{
 		db: db,
 	}

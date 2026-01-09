@@ -6,7 +6,7 @@ import (
 )
 
 type BookService struct {
-	repo Repository
+	repo BookRepo
 }
 
 // BookQuery 查询图书参数
@@ -43,7 +43,7 @@ var ErrNotEnoughRemain = errors.New("not enough remain")
 // ErrExceedTotal 图书余量溢出
 var ErrExceedTotal = errors.New("exceed total")
 
-func NewService(repo Repository) *BookService {
+func NewService(repo BookRepo) *BookService {
 	return &BookService{repo: repo}
 }
 
