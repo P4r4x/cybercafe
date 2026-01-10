@@ -16,10 +16,6 @@ func NewHandler(svc *CredentialService) *CredentialHandler {
 	}
 }
 
-func (h *CredentialHandler) RegisterHandler(c *gin.Context) {
-
-}
-
 func (h *CredentialHandler) LoginHandler(c *gin.Context) {
 
 	req := LoginInfo{}

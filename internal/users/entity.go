@@ -39,3 +39,23 @@ type UserMembership struct {
 	Level  int    `db:"level"`
 	Exp    int64  `db:"exp"`
 }
+
+type RegisterInfo struct {
+	Username string  `json:"username" binding:"required"`
+	Password string  `json:"password" binding:"required"`
+	Email    string  `json:"email" binding:"required,email"`
+	Phone    *string `json:"phone"`
+}
+
+type RegisterInfoDetail struct {
+	ID           string
+	UserID       string
+	Username     string
+	Email        string
+	Phone        string
+	PasswordHash string
+}
+
+type RegisterResult struct {
+	UserID string `json:"user_id"`
+}

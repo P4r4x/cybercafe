@@ -7,9 +7,9 @@ type Credential struct {
 }
 
 type LoginInfo struct {
-	Email    *string `json:"email" binding:"required"`
-	Username *string `json:"username" binding:"required"`
-	Password *string `json:"password" binding:"required"`
+	Email    *string `json:"email"`
+	Username *string `json:"username"`
+	Password *string `json:"password"`
 }
 
 type LoginResult struct {
