@@ -4,6 +4,7 @@ import (
 	"CyberCafe/internal/auth"
 	"CyberCafe/internal/books"
 	"CyberCafe/internal/infra/db"
+	"CyberCafe/internal/users"
 
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -18,9 +19,14 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	bookHandler := books.NewHandler(bookSvc)
 
 	// ===== 注入 auth 相关依赖 =====
-	userRepo := auth.NewPostgresRepo(pg.DB())
-	authSvc := auth.NewService(userRepo)
+	authRepo := auth.NewPostgresRepo(pg.DB())
+	authSvc := auth.NewService(authRepo)
 	authHandler := auth.NewHandler(authSvc)
+
+	// ===== 注入 users 相关依赖 =====
+	userRepo := users.NewPostgresRepo(pg.DB())
+	userSvc := users.NewService(userRepo)
+	userHandler := users.NewHandler(userSvc)
 
 	// ===== 测试路由 =====
 	r.GET("/hi", func(c *gin.Context) {
@@ -34,7 +40,7 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	})
 
 	r.POST("register", func(c *gin.Context) {
-		authHandler.RegisterHandler(c)
+		userHandler.RegisterHandler(c)
 	})
 
 	r.GET("/logout", func(c *gin.Context) {
