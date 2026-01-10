@@ -270,3 +270,127 @@ SELECT * FROM users WHERE name % 'Jon';
 
 长话短说, 数据库不应该具有 **认证语义**;
 
+---
+
+### Login / Register + JWT 后端实现小结
+
+本次实现覆盖了 **注册（Register）→ 登录（Login）→ JWT 鉴权** 的完整链路，整体设计以「分层清晰、职责单一、安全优先」为原则，核心要点如下。
+
+---
+
+#### 一、清晰的领域划分（Boundary 正确）
+
+- **users 域**
+  - 负责身份创建（Register）
+  - 只关心用户是否存在、如何存储
+  - 不产生任何鉴权态
+
+- **auth 域**
+  - 负责身份认证（Login）
+  - 校验凭据、签发 JWT
+  - 不创建用户、不修改用户基础信息
+
+> Register ≠ Authentication  
+> Register 是 Identity Creation，Login 才是 Auth
+
+---
+
+#### 二、严格的分层职责（非常关键）
+
+##### Handler
+- 只负责：
+  - HTTP 参数解析
+  - 基础校验
+  - 错误 → HTTP 状态码映射
+- **不处理密码、不写业务规则**
+
+##### Service
+- 业务核心层：
+  - bcrypt 生成 / 校验
+  - userid 生成与冲突重试
+  - 注册 / 登录规则控制
+- **唯一允许“理解密码语义”的层**
+
+##### Repo
+- 纯数据访问层：
+  - INSERT / SELECT
+  - 利用数据库约束保证一致性
+- **只接收 password_hash，不接触明文密码**
+
+---
+
+#### 三、注册流程设计要点（Register）
+
+- 不做「先查再插」
+- 直接 `INSERT`，由 DB UNIQUE 约束兜底
+- PostgreSQL 唯一约束显式命名：
+  - `uk_users_username`
+  - `uk_users_email`
+  - `uk_users_phone`
+  - `uk_users_userid`
+- Repo 层解析 `unique_violation (23505)`，返回**语义化错误**
+- userid：
+  - 服务端生成
+  - 使用 `crypto/rand`
+  - 非连续、不可预测
+  - 冲突在 service 层 retry
+
+---
+
+#### 四、密码与安全策略
+
+- 明文密码生命周期极短：
+  - 仅存在于 handler → service
+- bcrypt：
+  - 只在 service 层生成 / 校验
+  - repo 永远只存 hash
+- repo 不依赖 bcrypt，保证：
+  - 可测试性
+  - 可替换性
+  - 职责纯净
+
+---
+
+#### 五、登录流程设计要点（Login）
+
+- 登录只做：
+  - 查询 credential
+  - bcrypt.Compare
+  - 签发 JWT
+- 不自动注册、不混合注册逻辑
+- 登录失败原因可控（不存在 / 密码错误）
+
+---
+
+#### 六、JWT 设计原则
+
+- JWT 只在 auth 域生成
+- payload 最小化（user_id / role 等）
+- handler 只负责：
+  - 取 token
+  - 调用 auth service 校验
+- 中间件做统一鉴权，业务 handler 不感知 JWT 细节
+
+---
+
+#### 七、错误设计（工程级）
+
+- repo 返回 **业务语义错误**
+- handler 决定 HTTP 状态码：
+  - 400：参数错误
+  - 401：认证失败
+  - 409：资源冲突（用户名 / 邮箱 / 手机）
+  - 500：系统错误
+- 不依赖字符串匹配判断错误类型
+
+---
+
+#### 八、整体收益
+
+- 并发安全（无 TOCTOU）
+- 安全边界清晰（最小暴露）
+- 易于测试（service / repo 可独立 mock）
+- 可扩展（未来支持 OAuth / WebAuthn 不翻层）
+- 结构稳定，避免中后期重构
+
+---
