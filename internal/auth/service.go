@@ -44,5 +44,14 @@ func (s CredentialService) LoginService(c context.Context, req LoginInfo) (*Logi
 		return nil, ErrLoginFailed
 	}
 
-	return nil, nil
+	// 4. 生成 JWT
+	token, err := GenerateToken(user.UserID)
+	if err != nil {
+		return nil, err
+	}
+	result := LoginResult{
+		Token: token,
+	}
+
+	return &result, nil
 }

@@ -25,7 +25,6 @@ func AuthRequired() gin.HandlerFunc {
 
 		// 注入上下文
 		c.Set("uid", claims.UID)
-		c.Set("role", claims.Role)
 
 		c.Next()
 	}
