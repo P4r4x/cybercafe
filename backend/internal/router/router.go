@@ -1,11 +1,10 @@
 package router
 
 import (
-	"CyberCafe/internal/auth"
-	"CyberCafe/internal/books"
-	"CyberCafe/internal/infra/db"
-	"CyberCafe/internal/users"
-
+	auth2 "CyberCafe/backend/internal/auth"
+	books2 "CyberCafe/backend/internal/books"
+	"CyberCafe/backend/internal/infra/db"
+	users2 "CyberCafe/backend/internal/users"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -14,19 +13,19 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	r := engine
 
 	// ===== 注入 books 相关依赖 =====
-	bookRepo := books.NewPostgresRepo(pg.DB())
-	bookSvc := books.NewService(bookRepo)
-	bookHandler := books.NewHandler(bookSvc)
+	bookRepo := books2.NewPostgresRepo(pg.DB())
+	bookSvc := books2.NewService(bookRepo)
+	bookHandler := books2.NewHandler(bookSvc)
 
 	// ===== 注入 auth 相关依赖 =====
-	authRepo := auth.NewPostgresRepo(pg.DB())
-	authSvc := auth.NewService(authRepo)
-	authHandler := auth.NewHandler(authSvc)
+	authRepo := auth2.NewPostgresRepo(pg.DB())
+	authSvc := auth2.NewService(authRepo)
+	authHandler := auth2.NewHandler(authSvc)
 
 	// ===== 注入 users 相关依赖 =====
-	userRepo := users.NewPostgresRepo(pg.DB())
-	userSvc := users.NewService(userRepo)
-	userHandler := users.NewHandler(userSvc)
+	userRepo := users2.NewPostgresRepo(pg.DB())
+	userSvc := users2.NewService(userRepo)
+	userHandler := users2.NewHandler(userSvc)
 
 	// ===== 测试路由 =====
 	r.GET("/hi", func(c *gin.Context) {
@@ -56,7 +55,7 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 
 			// 需要登录
 			authBooks := booksGroup.Group("/")
-			authBooks.Use(auth.AuthRequired())
+			authBooks.Use(auth2.AuthRequired())
 			{
 				// 借阅
 				authBooks.POST("/borrow", func(c *gin.Context) {
@@ -78,7 +77,7 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 
 				authBooks.POST("/add_stock", func(c *gin.Context) {
 					// 需要管理员权限
-					auth.AdminRequired()
+					auth2.AdminRequired()
 					bookHandler.BookAddStockHandler(c)
 				})
 			}

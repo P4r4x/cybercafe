@@ -53,7 +53,6 @@ func generateUserID() string {
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(max_id-min_id+1))
 	if err != nil {
-		// 理论上极少发生，直接 panic 或向上抛都可以
 		panic("failed to generate secure userid")
 	}
 

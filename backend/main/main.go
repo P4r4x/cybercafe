@@ -1,8 +1,8 @@
 package main
 
 import (
-	"CyberCafe/internal/infra/db"
-	"CyberCafe/internal/router"
+	"CyberCafe/backend/internal/infra/db"
+	"CyberCafe/backend/internal/router"
 	"github.com/gin-gonic/gin"
 	"log"
 )

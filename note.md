@@ -10,7 +10,8 @@
 |任务|进度|
 |----|----|
 |图书基本功能开发(CRUD)(mvp)|complete|
-|鉴权, 跨域认证(mvp)|in progress|
+|鉴权, 跨域认证(mvp)|complete|
+|admin 功能|TODO|
 |人员管理|TODO|
 |借还记录|TODO|
 |订座订购功能|TODO|
@@ -394,3 +395,22 @@ SELECT * FROM users WHERE name % 'Jon';
 - 结构稳定，避免中后期重构
 
 ---
+
+## 测试数据:
+
+```json
+"username":"john_doe",
+"password":"12345678",
+"email":"johndoe@example.com",
+"phone":"11122233344"
+
+"username":"alice",
+"password":"12345678",
+"email":"alice@example.com",
+"phone":"11122233355"
+
+"username":"zhangquandan",
+"password":"1234567890",
+"email":"zqd@example.com",
+"phone":"13300012345"
+```

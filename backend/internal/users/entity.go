@@ -1,7 +1,7 @@
 package users
 
 import (
-	"CyberCafe/internal/infra/db"
+	"CyberCafe/backend/internal/infra/db"
 	"time"
 )
 

@@ -1,7 +1,7 @@
 package books
 
 import (
-	"CyberCafe/internal/infra/db"
+	"CyberCafe/backend/internal/infra/db"
 	"github.com/jackc/pgx/v5/pgtype"
 	"time"
 )
