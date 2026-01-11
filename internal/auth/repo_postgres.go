@@ -22,14 +22,14 @@ func (p PostgresRepo) Find(ctx context.Context, req LoginInfo) (*Credential, err
 	// 预编译语句
 	const (
 		findByUsernameSQL = `
-		SELECT id, password_hash
+		SELECT id, password_hash, role
 		FROM users
 		WHERE username = $1
 		LIMIT 1
 	`
 
 		findByEmailSQL = `
-		SELECT id, password_hash
+		SELECT id, password_hash, role
 		FROM users
 		WHERE email = $1
 		LIMIT 1
@@ -56,6 +56,7 @@ func (p PostgresRepo) Find(ctx context.Context, req LoginInfo) (*Credential, err
 	err := row.Scan(
 		&cred.UserID,
 		&cred.PasswordHash,
+		&cred.Role,
 	)
 
 	if err != nil {
@@ -68,7 +69,4 @@ func (p PostgresRepo) Find(ctx context.Context, req LoginInfo) (*Credential, err
 	}
 
 	return &cred, nil
-}
-func (p PostgresRepo) Create(ctx context.Context, cred *Credential) error {
-	return nil
 }

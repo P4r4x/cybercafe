@@ -120,3 +120,34 @@ func (h *BookHandler) BookChangeRemainHandler(c *gin.Context) {
 	// 5. 成功响应
 	c.JSON(http.StatusOK, gin.H{"message": "action success"})
 }
+
+func (h *BookHandler) BookAddStockHandler(c *gin.Context) {
+
+	var req BookChangeStockRequest
+
+	// 1. 解析 JSON
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	// 2. 基础参数校验
+	// 只能接受 id 参数, 防止多结果
+	if req.ID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "book id is required"})
+		return
+	}
+
+	query := BookChangeStockRequest{
+		ID:     req.ID,
+		Amount: req.Amount,
+	}
+
+	_, err := h.svc.BookAddStockService(c.Request.Context(), query)
+	if err != nil {
+		// 4. 错误处理, 状态码映射
+		ErrorHandler(err, c)
+		return
+	}
+
+}

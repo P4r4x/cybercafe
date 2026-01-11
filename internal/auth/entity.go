@@ -4,6 +4,7 @@ package auth
 type Credential struct {
 	UserID       string
 	PasswordHash string
+	Role         string
 }
 
 type LoginInfo struct {

@@ -92,7 +92,7 @@ func (h *UserHandler) RegisterHandler(c *gin.Context) {
 
 	user, err := h.svc.UserRegister(c, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "register failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

@@ -64,14 +64,14 @@ func (p PostgresRepo) Register(c context.Context, d *RegisterInfoDetail) (Regist
 		// unique_violation
 		if pgErr.Code == "23505" {
 			switch pgErr.ConstraintName {
-			case "uk_users_username":
+			case "users_username_key":
 				return RegisterResult{}, ErrUsernameExists
-			case "uk_users_email":
+			case "users_email_key":
 				return RegisterResult{}, ErrEmailExists
-			case "uk_users_phone":
+			case "users_phone_key":
 				return RegisterResult{}, ErrPhoneExists
-			case "uk_users_userid":
-				return RegisterResult{}, errors.New("userid collision")
+			case "users_userid_key":
+				return RegisterResult{}, ErrUserIDExists
 			}
 		}
 	}

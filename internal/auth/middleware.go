@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// AuthRequired 登录验证
 func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := extractJWT(c)
@@ -39,9 +40,27 @@ func extractJWT(c *gin.Context) string {
 	}
 
 	// Cookie: 从 token 中提取
-	if token, err := c.Cookie("token"); err == nil {
+	if token, err := c.Cookie("cookie"); err == nil {
 		return token
 	}
 
 	return ""
+}
+
+// AdminRequired 管理员验证
+func AdminRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, ok := c.Get("claims")
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		if claims.(*Claims).Role != "admin" {
+			c.AbortWithStatusJSON(403, gin.H{"error": "forbidden"})
+			return
+		}
+
+		c.Next()
+	}
 }

@@ -115,3 +115,37 @@ SELECT
 	}
 	return nil
 }
+
+func (r *PostgresRepo) AddStock(ctx context.Context, bookID BookID, delta int) error {
+	const q = ` 
+		WITH target AS (
+			SELECT id, remain, total
+			FROM books
+			WHERE id = $2
+		),
+		updated AS (
+			UPDATE books b
+			SET remain = t.remain + $1,
+				total  = t.total + $1
+			FROM target t
+			WHERE b.id = t.id
+			  AND t.remain + $1 >= 0
+			RETURNING b.id
+		)
+		SELECT
+		EXISTS (SELECT 1 FROM target) AS exists,
+		EXISTS (SELECT 1 FROM updated) AS updated;`
+	var exists bool
+	var updated bool
+	err := r.db.QueryRowContext(ctx, q, delta, bookID).Scan(&exists, &updated)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrBookNotFound
+	}
+	if !updated {
+		return ErrNotEnoughRemain
+	}
+	return nil
+}

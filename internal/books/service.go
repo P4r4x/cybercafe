@@ -23,8 +23,8 @@ type BookChangeRemainRequest struct {
 	Amount int    `json:"amount"`
 }
 
-// BookReturnRequest 归还图书参数
-type BookReturnRequest struct {
+// BookChangeStockRequest 修改图书库存服务
+type BookChangeStockRequest struct {
 	ID     BookID `json:"id"`
 	Amount int    `json:"amount"`
 }
@@ -80,6 +80,7 @@ func (s *BookService) BookBorrowService(ctx context.Context, q BookChangeRemainR
 
 // BookReturnService 归还服务
 func (s *BookService) BookReturnService(ctx context.Context, q BookChangeRemainRequest) (interface{}, error) {
+
 	// 载入查询参数, 必须是唯一的参数
 	bookId := &q.ID
 	amount := &q.Amount
@@ -97,4 +98,21 @@ func (s *BookService) BookReturnService(ctx context.Context, q BookChangeRemainR
 	}
 	return "success", nil
 
+}
+
+func (s *BookService) BookAddStockService(ctx context.Context, q BookChangeStockRequest) (interface{}, error) {
+
+	// 载入查询参数, 必须是唯一的参数
+	bookId := &q.ID
+	amount := &q.Amount
+
+	// 参数校验
+	if bookId == nil {
+		return nil, ErrBookNotFound
+	}
+	err := s.repo.AddStock(ctx, *bookId, *amount)
+	if err != nil {
+		return nil, err
+	}
+	return "success", nil
 }
