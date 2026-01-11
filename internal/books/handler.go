@@ -145,9 +145,11 @@ func (h *BookHandler) BookAddStockHandler(c *gin.Context) {
 
 	_, err := h.svc.BookAddStockService(c.Request.Context(), query)
 	if err != nil {
-		// 4. 错误处理, 状态码映射
+		// 3. 错误处理, 状态码映射
 		ErrorHandler(err, c)
 		return
 	}
 
+	// 4. 成功响应
+	c.JSON(http.StatusOK, gin.H{"message": "action success"})
 }

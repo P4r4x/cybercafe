@@ -76,7 +76,7 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 					c.JSON(http.StatusOK, gin.H{"message": "TODO 购买"})
 				})
 
-				authBooks.POST("/addstock", func(c *gin.Context) {
+				authBooks.POST("/add_stock", func(c *gin.Context) {
 					// 需要管理员权限
 					auth.AdminRequired()
 					bookHandler.BookAddStockHandler(c)
