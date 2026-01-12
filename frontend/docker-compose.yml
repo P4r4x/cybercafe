@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cybercafe-frontend
+    ports:
+      - "9017:5173"
+    volumes:
+      # 挂载
+      - .:/app
+      - /app/node_modules
+    environment:
+      # Docker 下文件监听必备
+      - CHOKIDAR_USEPOLLING=true
+      # 前端访问本机后端, 注意, 这样写才能正确指向本机, localhost 不出 docker
+      - VITE_API_BASE=http://host.docker.internal:9016

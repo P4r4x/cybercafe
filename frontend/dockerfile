@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+# 工作目录
+WORKDIR /app
+
+# 先拷依赖描述文件，利用缓存
+COPY package.json package-lock.json ./
+RUN npm install
+
+# 再拷源码
+COPY . .
+
+# Vite 默认端口
+EXPOSE 5173
+
+# --host 是关键，否则只能容器内访问
+CMD ["npm", "run", "dev", "--", "--host"]

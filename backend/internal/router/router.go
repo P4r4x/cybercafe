@@ -5,12 +5,43 @@ import (
 	books2 "CyberCafe/backend/internal/books"
 	"CyberCafe/backend/internal/infra/db"
 	users2 "CyberCafe/backend/internal/users"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
 func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	r := engine
+
+	// 调试配置, 生产时用下方注释
+	cors.New(cors.Config{
+		AllowOriginFunc: func(origin string) bool {
+			return true
+		},
+		AllowMethods: []string{
+			"GET", "POST", "PUT", "DELETE", "OPTIONS",
+		},
+		AllowHeaders: []string{
+			"Origin", "Content-Type", "Authorization",
+		},
+		AllowCredentials: true,
+	})
+
+	// // 生产配置
+	//
+	//	AllowOrigins: []string{
+	//		// 只允许前端访问
+	//		"http://localhost:5173",
+	//	},
+	//	AllowMethods: []string{
+	//		"GET", "POST", "PUT", "DELETE", "OPTIONS",
+	//	},
+	//	AllowHeaders: []string{
+	//		"Origin", "Content-Type", "Authorization",
+	//	},
+	//	AllowCredentials: true,
+	//	MaxAge:           12 * time.Hour,
+	//}))
 
 	// ===== 注入 books 相关依赖 =====
 	bookRepo := books2.NewPostgresRepo(pg.DB())
