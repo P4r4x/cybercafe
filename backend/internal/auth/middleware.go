@@ -25,7 +25,7 @@ func AuthRequired() gin.HandlerFunc {
 		}
 
 		// 注入上下文
-		c.Set("uid", claims.UID)
+		c.Set("claims", claims)
 
 		c.Next()
 	}
@@ -50,17 +50,11 @@ func extractJWT(c *gin.Context) string {
 // AdminRequired 管理员验证
 func AdminRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		claims, ok := c.Get("claims")
-		if !ok {
-			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
-			return
-		}
-
-		if claims.(*Claims).Role != "admin" {
+		claims := c.MustGet("claims").(*Claims)
+		if claims.Role != "admin" {
 			c.AbortWithStatusJSON(403, gin.H{"error": "forbidden"})
 			return
 		}
-
 		c.Next()
 	}
 }
