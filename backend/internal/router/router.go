@@ -106,11 +106,16 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 					c.JSON(http.StatusOK, gin.H{"message": "TODO 购买"})
 				})
 
-				authBooks.POST("/add_stock", func(c *gin.Context) {
-					// 需要管理员权限
-					auth2.AdminRequired()
-					bookHandler.BookAddStockHandler(c)
-				})
+				// 需要管理员权限组
+				adminBooks := booksGroup.Group("/")
+				adminBooks.Use(
+					auth2.AuthRequired(),
+					auth2.AdminRequired(),
+				)
+
+				// 添加库存
+				adminBooks.POST("/add_stock", bookHandler.BookAddStockHandler)
+
 			}
 
 		}
