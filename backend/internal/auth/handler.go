@@ -96,6 +96,6 @@ func (h *CredentialHandler) LoginHandler(c *gin.Context) {
 	// 成功响应
 	c.SetCookie("cookie", result.Token, 7200, "/", "localhost", false, true)
 	c.JSON(http.StatusOK, gin.H{
-		"message": "login success",
+		"message": "success",
 	})
 }
