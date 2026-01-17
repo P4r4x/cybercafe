@@ -5,6 +5,7 @@ type Credential struct {
 	UserID       string
 	PasswordHash string
 	Role         string
+	Status       string
 }
 
 type LoginInfo struct {

@@ -1,7 +1,12 @@
 package users
 
-import "golang.org/x/net/context"
+import (
+	"context"
+)
 
 type UserRepo interface {
-	Register(ctx context.Context, d *RegisterInfoDetail) (RegisterResult, error)
+	Register(c context.Context, d *RegisterInfoDetail) (RegisterResult, error)
+	GetAccount(c context.Context, uid string) (*UserAccount, error)
+	GetBookshelf(uid string) ([]BookshelfItemDTO, error)
+	AddBook(uid string, bookID string) error
 }

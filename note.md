@@ -9,8 +9,11 @@
 
 |任务|进度|
 |----|----|
-|图书基本功能开发(CRUD)(mvp)|complete|
-|鉴权, 跨域认证(mvp)|complete|
+|(后端) 图书基本功能开发(CRUD)(mvp)|complete|
+|(后端) 鉴权, 跨域认证(mvp)|complete|
+|(后端) 登录注册界面|complete|
+|(前端) 登录注册界面|complete|
+|(前端) 浏览器缓存机制|TODO|
 |admin 功能|TODO|
 |人员管理|TODO|
 |借还记录|TODO|
@@ -396,6 +399,69 @@ SELECT * FROM users WHERE name % 'Jon';
 
 ---
 
+### 联调注意
+
+联调时, 前端和数据库在 docker, 而后端在宿主机; 宿主机访问 docker 内容非常简单, 通过端口映射即可; 但是 docker 访问宿主机, 不可以用 `localhost` (指向容器自身), 而要使用 `host.docker.internal`;
+
+这个写法是非法组合 (协议级非法), 会导致无法访问, 注意避免:
+
+```
+AllowOrigins: []string{"*"} 
+AllowCredentials: true
+```
+
+#### 非简单请求
+
+触发预检（OPTIONS）的条件（命中其中之一即可）
+
+- 跨域（5173 → 9016） ✅
+- Content-Type: application/json ❌（不是 simple header）
+- POST + JSON body ❌
+
+### 前端发起查询的参数设计
+
+前端永远不应该可以直接在 post 或 get 的参数中直接涉及查询参数, 相反, 应该存放在 JWT 中; 因为 JWT 存在签名机制, 用户无法篡改, 否则无法通过服务端的校验;
+
+简单来说, 概括一下这样做的优点:
+
+- 语义统一;
+- 查询条件统一, 干净;
+- 语义接口稳定;
+
+### Dashboard 页面
+
+下一步是开发用户的仪表盘页面, 这一步是前后端同时推进的; 考虑主页上涉及的功能有: 查看账户余额, 显示会员等级, 查询借还记录, 显示书架, 显示推荐商品;
+
+> 2026/01/18
+
+前端仪表盘功能汇总:
+
+1️⃣ 用户态内容
+
+我的会员等级
+当前可用优惠券
+借阅剩余额度
+
+2️⃣ 场景入口
+
+今日可借阅书籍
+门店座位情况（实时感）
+推荐阅读 / 试读
+
+3️⃣ 商业引导
+
+会员升级提
+限时优惠
+到店自取推荐
+
+#### 建表
+
+拿最典型的三个表为例: **账户表 (余额, 会员等级..), 借还记录表, 收藏图书表**
+
+显然这三个表都需要与 user 表直接相连, 这里涉及到一个外键设计问题, 现在有很多大型项目在设计数据库的时候会**禁用物理外键+级联**, 把数据库的约束放到应用层由程序员显式解决; 这么做的原因是: 1. 高并发场景下, 物理外键会引起数据库额外开销, 容易形成性能瓶颈; 2. 维护外键约束时, 尤其是删除操作中, 需要对相关表加表级锁, 容易阻塞影响吞吐; 
+
+这里本项目的 PG 就发挥了优势: PG 的外键实现更优 (说的就是 Mysql), 使用了更优的表级锁, 只要不频繁发起大规模删除操作, 就不容易阻塞; 
+
 ## 测试数据:
 
 ```json
@@ -414,3 +480,89 @@ SELECT * FROM users WHERE name % 'Jon';
 "email":"zqd@example.com",
 "phone":"13300012345"
 ```
+## 前端初始化
+
+项目结构:
+
+```
+.
+├── backend/
+└── frontend/
+    ├── src/
+    │   ├── assets/
+    │   ├── App.tsx
+    │   ├── main.tsx
+    │   └── index.css
+    ├── index.html
+    ├── package.json
+    ├── package-lock.json
+    ├── tsconfig.json
+    ├── tsconfig.node.json
+    ├── vite.config.ts
+    ├── tailwind.config.ts
+    ├── postcss.config.js
+
+```
+
+执行
+
+```bash
+cd frontend
+npm install
+docker compose up -d
+```
+
+## (TODO) 结构
+
+```
+src/
+├─ api/                # 所有后端通信（REST / GraphQL）
+│  ├─ http.ts          # axios / fetch 封装
+│  ├─ auth.ts
+│  ├─ books.ts
+│  └─ index.ts
+│
+├─ components/         # 纯 UI 组件（无业务）
+│  ├─ Button.tsx
+│  ├─ Input.tsx
+│  └─ Modal.tsx
+│
+├─ features/           # 业务功能域（强烈推荐）
+│  ├─ auth/
+│  │  ├─ pages/
+│  │  │  └─ Login.tsx
+│  │  ├─ hooks.ts
+│  │  └─ types.ts
+│  │
+│  ├─ books/
+│  │  ├─ pages/
+│  │  │  └─ BookList.tsx
+│  │  ├─ components/
+│  │  ├─ hooks.ts
+│  │  └─ types.ts
+│
+├─ layouts/            # 页面布局（Header / Sidebar）
+│  └─ MainLayout.tsx
+│
+├─ router/             # 路由
+│  └─ index.tsx
+│
+├─ store/              # 状态管理（后面再说）
+│
+├─ styles/             # 全局样式 / tailwind 扩展
+│
+├─ App.tsx
+└─ main.tsx
+```
+
+### react 学习笔记
+
+#### useState
+
+用人话来说, `useState` 是为了方便 **"保存, 渲染 + 刷新"**, 如果不用这个功能, 则变量改变后组件不会重新渲染;
+
+> 例如, 一个记录点击次数的功能, 假设按一个按钮就会使得计数 +1 , 此处如果不用 useState, 那么即使计数值发生了改变, 由于前端没有重新渲染, 用户将看不见值改变;
+
+谭松韵
+
+###

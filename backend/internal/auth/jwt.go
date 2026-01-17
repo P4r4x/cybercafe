@@ -7,8 +7,9 @@ import (
 )
 
 type Claims struct {
-	UID  string `json:"id"`
-	Role string `json:"role"`
+	UID    string `json:"id"`
+	Role   string `json:"role"`
+	Status string `json:"status"`
 	jwt.RegisteredClaims
 }
 
@@ -16,10 +17,11 @@ type Claims struct {
 var secret = []byte("your-secret-key")
 
 // GenerateToken 生成 JWT
-func GenerateToken(uid, role string) (string, error) {
+func GenerateToken(uid, role, status string) (string, error) {
 	claims := Claims{
-		UID:  uid,
-		Role: role,
+		UID:    uid,
+		Role:   role,
+		Status: status,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

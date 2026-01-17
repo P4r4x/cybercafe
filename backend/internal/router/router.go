@@ -8,15 +8,23 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"time"
 )
 
 func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	r := engine
 
 	// 调试配置, 生产时用下方注释
-	cors.New(cors.Config{
+	r.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
 			return true
+		},
+		AllowOrigins: []string{
+			// 只允许前端访问
+			"http://localhost:9017",
+			// 允许 Burp Suite 调试
+			"http://localhost:8080",
+			"http://burp",
 		},
 		AllowMethods: []string{
 			"GET", "POST", "PUT", "DELETE", "OPTIONS",
@@ -25,23 +33,8 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 			"Origin", "Content-Type", "Authorization",
 		},
 		AllowCredentials: true,
-	})
-
-	// // 生产配置
-	//
-	//	AllowOrigins: []string{
-	//		// 只允许前端访问
-	//		"http://localhost:5173",
-	//	},
-	//	AllowMethods: []string{
-	//		"GET", "POST", "PUT", "DELETE", "OPTIONS",
-	//	},
-	//	AllowHeaders: []string{
-	//		"Origin", "Content-Type", "Authorization",
-	//	},
-	//	AllowCredentials: true,
-	//	MaxAge:           12 * time.Hour,
-	//}))
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// ===== 注入 books 相关依赖 =====
 	bookRepo := books2.NewPostgresRepo(pg.DB())
@@ -58,6 +51,13 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	userSvc := users2.NewService(userRepo)
 	userHandler := users2.NewHandler(userSvc)
 
+	// ===== 跨域 =====
+	// 仅调试使用
+
+	r.OPTIONS("/*path", func(c *gin.Context) {
+		c.Status(204)
+	})
+
 	// ===== 测试路由 =====
 	r.GET("/hi", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Hello world!"})
@@ -69,7 +69,7 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 		authHandler.LoginHandler(c)
 	})
 
-	r.POST("register", func(c *gin.Context) {
+	r.POST("/register", func(c *gin.Context) {
 		userHandler.RegisterHandler(c)
 	})
 
@@ -106,6 +106,9 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 					c.JSON(http.StatusOK, gin.H{"message": "TODO 购买"})
 				})
 
+				// 向书架添加图书
+				authBooks.GET("/add/:id", userHandler.AddBookHandler)
+
 				// 需要管理员权限组
 				adminBooks := booksGroup.Group("/")
 				adminBooks.Use(
@@ -118,6 +121,21 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 
 			}
 
+		}
+		{
+			authPages := booksGroup.Group("/me")
+			authPages.Use(auth2.AuthRequired())
+			{
+				authPages.GET("/summary", func(c *gin.Context) {
+					userHandler.MeSummaryHandler(c)
+				})
+				authPages.GET("/bookshelf", func(c *gin.Context) {
+					userHandler.GetBookshelfHandler(c)
+				})
+				authPages.POST("/dashboard", func(c *gin.Context) {
+					// userHandler.DashboardHandler(c)
+				})
+			}
 		}
 	}
 }

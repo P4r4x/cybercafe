@@ -1,8 +1,8 @@
 package books
 
 import (
+	"context"
 	"errors"
-	"golang.org/x/net/context"
 )
 
 type BookService struct {

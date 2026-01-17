@@ -1,10 +1,10 @@
 package users
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/jackc/pgx/v5/pgconn"
-	"golang.org/x/net/context"
 )
 
 type PostgresRepo struct {
@@ -78,4 +78,91 @@ func (p PostgresRepo) Register(c context.Context, d *RegisterInfoDetail) (Regist
 
 	// 未知数据库错误
 	return RegisterResult{}, err
+}
+
+func (p PostgresRepo) GetAccount(c context.Context, uid string) (*UserAccount, error) {
+
+	const baseSQL = `
+		SELECT uid, balance, exp, level, status, updated_at
+		FROM user_account
+		where uid = $1`
+
+	var u UserAccount
+
+	err := p.db.QueryRowContext(
+		c,
+		baseSQL,
+		uid,
+	).Scan(
+		&u.UID,
+		&u.Balance,
+		&u.Exp,
+		&u.Level,
+		&u.Status,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &u, nil
+}
+
+func (p PostgresRepo) GetBookshelf(uid string) ([]BookshelfItemDTO, error) {
+	query := `
+		SELECT
+			b.id,
+			b.title,
+			b.author
+		FROM user_bookshelf ub
+		JOIN books b ON ub.book_id = b.id
+		WHERE ub.uid = $1
+		ORDER BY ub.created_at DESC
+	`
+
+	rows, err := p.db.Query(query, uid)
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
+
+	items := make([]BookshelfItemDTO, 0)
+
+	for rows.Next() {
+		var item BookshelfItemDTO
+		if err := rows.Scan(
+			&item.BookID,
+			&item.Title,
+			&item.Author,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func (p PostgresRepo) AddBook(uid string, bookID string) error {
+	query := `
+		 INSERT INTO user_bookshelf (uid, book_id)
+        VALUES ($1, $2)
+        ON CONFLICT (uid, book_id) DO NOTHING
+	`
+
+	_, err := p.db.Exec(query, uid, bookID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

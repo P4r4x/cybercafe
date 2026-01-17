@@ -1,6 +1,7 @@
 package users
 
 import (
+	auth2 "CyberCafe/backend/internal/auth"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"regexp"
@@ -90,7 +91,7 @@ func (h *UserHandler) RegisterHandler(c *gin.Context) {
 		}
 	}
 
-	user, err := h.svc.UserRegister(c, req)
+	user, err := h.svc.UserRegister(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -99,5 +100,85 @@ func (h *UserHandler) RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "success",
 		"data":    user,
+	})
+}
+
+func (h *UserHandler) MeSummaryHandler(c *gin.Context) {
+
+	// 从 JWT 中获取用户 ID
+	claimsAny, ok := c.Get("claims")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims, ok := claimsAny.(*auth2.Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	resp, err := h.svc.AccountSummary(c.Request.Context(), claims.UID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query summary"})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *UserHandler) GetBookshelfHandler(c *gin.Context) {
+
+	// 从 JWT 中获取用户 ID
+	claimsAny, ok := c.Get("claims")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims, ok := claimsAny.(*auth2.Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	items, err := h.svc.UserBookshelf(claims.UID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query summary"})
+		return
+	}
+
+	c.JSON(http.StatusOK, items)
+
+}
+
+func (h *UserHandler) AddBookHandler(c *gin.Context) {
+
+	// 从 JWT 中获取用户 ID
+	claimsAny, ok := c.Get("claims")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims, ok := claimsAny.(*auth2.Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	// 从 GET 里获取 book_id
+	// 从 URL 路径中获取 book_id 参数
+	bookID := c.Param("id")
+	if bookID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "book id is required"})
+		return
+	}
+
+	err := h.svc.AddBook(claims.UID, bookID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
 	})
 }

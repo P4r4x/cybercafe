@@ -1,9 +1,9 @@
 package auth
 
 import (
+	"context"
 	"database/sql"
 	"errors"
-	"golang.org/x/net/context"
 )
 
 type PostgresRepo struct {
@@ -22,14 +22,14 @@ func (p PostgresRepo) Find(ctx context.Context, req LoginInfo) (*Credential, err
 	// 预编译语句
 	const (
 		findByUsernameSQL = `
-		SELECT id, password_hash, role
+		SELECT id, password_hash, role, status
 		FROM users
 		WHERE username = $1
 		LIMIT 1
 	`
 
 		findByEmailSQL = `
-		SELECT id, password_hash, role
+		SELECT id, password_hash, role, status
 		FROM users
 		WHERE email = $1
 		LIMIT 1
@@ -57,6 +57,7 @@ func (p PostgresRepo) Find(ctx context.Context, req LoginInfo) (*Credential, err
 		&cred.UserID,
 		&cred.PasswordHash,
 		&cred.Role,
+		&cred.Status,
 	)
 
 	if err != nil {

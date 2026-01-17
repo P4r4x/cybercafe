@@ -1,12 +1,15 @@
 package users
 
 import (
+	"context"
 	"crypto/rand"
-	"github.com/gin-gonic/gin"
+	"errors"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"math/big"
 )
+
+var ErrUserNotFound = errors.New("user not found")
 
 type UserService struct {
 	repo UserRepo
@@ -18,7 +21,7 @@ func NewService(repo UserRepo) *UserService {
 	}
 }
 
-func (s UserService) UserRegister(c *gin.Context, req RegisterInfo) (*RegisterResult, error) {
+func (s UserService) UserRegister(c context.Context, req RegisterInfo) (*RegisterResult, error) {
 
 	hash, err := bcrypt.GenerateFromPassword(
 		[]byte(req.Password),
@@ -57,4 +60,23 @@ func generateUserID() string {
 	}
 
 	return big.NewInt(0).Add(nBig, big.NewInt(min_id)).String()
+}
+
+func (s UserService) AccountSummary(c context.Context, uid string) (*UserAccount, error) {
+	result, err := s.repo.GetAccount(c, uid)
+	if err != nil {
+		return nil, err
+	}
+	if &result.UID == nil {
+		return nil, ErrUserNotFound
+	}
+	return result, nil
+}
+
+func (s UserService) UserBookshelf(uid string) ([]BookshelfItemDTO, error) {
+	return s.repo.GetBookshelf(uid)
+}
+
+func (s UserService) AddBook(uid string, bookID string) error {
+	return s.repo.AddBook(uid, bookID)
 }

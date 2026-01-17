@@ -1,6 +1,6 @@
 package books
 
-import "golang.org/x/net/context"
+import "context"
 
 type BookRepo interface {
 	Find(ctx context.Context, q BookQuery) ([]*Book, error)

@@ -1,9 +1,9 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/net/context"
 )
 
 // ===== 报错处理 =====
@@ -35,7 +35,7 @@ func (s CredentialService) LoginService(c context.Context, req LoginInfo) (*Logi
 		return nil, ErrLoginFailed
 	}
 
-	// 3. 校验密码
+	// 3. 校验密码 和 用户状态
 	if err := bcrypt.CompareHashAndPassword(
 		[]byte(user.PasswordHash),
 		[]byte(*req.Password),
@@ -44,8 +44,13 @@ func (s CredentialService) LoginService(c context.Context, req LoginInfo) (*Logi
 		return nil, ErrLoginFailed
 	}
 
+	if user.Status != "active" {
+		// 账号被禁用
+		return nil, ErrLoginFailed
+	}
+
 	// 4. 生成 JWT
-	token, err := GenerateToken(user.UserID, user.Role)
+	token, err := GenerateToken(user.UserID, user.Role, user.Status)
 	if err != nil {
 		return nil, err
 	}

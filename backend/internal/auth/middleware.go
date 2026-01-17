@@ -18,7 +18,14 @@ func AuthRequired() gin.HandlerFunc {
 		}
 
 		claims, err := ParseToken(tokenStr)
+
 		if err != nil {
+			c.Redirect(http.StatusFound, "/login")
+			c.Abort()
+			return
+		}
+
+		if claims.Status != "active" {
 			c.Redirect(http.StatusFound, "/login")
 			c.Abort()
 			return

@@ -2,6 +2,7 @@ package users
 
 import (
 	"CyberCafe/backend/internal/infra/db"
+	"github.com/shopspring/decimal"
 	"time"
 )
 
@@ -25,19 +26,13 @@ type User struct {
 }
 
 // UserAccount 账户信息
-// TODO 待完善
 type UserAccount struct {
-	UserID    string    `db:"user_id"`
-	Balance   int64     `db:"balance"`
-	UpdatedAt time.Time `db:"updated_at"`
-}
-
-// UserMembership 会员信息
-// TODO 待完善
-type UserMembership struct {
-	UserID string `db:"user_id"`
-	Level  int    `db:"level"`
-	Exp    int64  `db:"exp"`
+	UID       string          `db:"uid"`
+	Balance   decimal.Decimal `db:"balance"`
+	Exp       int64           `db:"exp"`
+	Level     int             `db:"level"`
+	Status    int             `db:"status"`
+	UpdatedAt time.Time       `db:"updated_at"`
 }
 
 type RegisterInfo struct {
@@ -45,6 +40,12 @@ type RegisterInfo struct {
 	Password string  `json:"password" binding:"required"`
 	Email    string  `json:"email" binding:"required,email"`
 	Phone    *string `json:"phone"`
+}
+
+type BookshelfItemDTO struct {
+	BookID string
+	Title  string
+	Author string
 }
 
 type RegisterInfoDetail struct {
