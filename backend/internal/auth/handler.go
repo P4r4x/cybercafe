@@ -94,7 +94,27 @@ func (h *CredentialHandler) LoginHandler(c *gin.Context) {
 	}
 
 	// 成功响应
-	c.SetCookie("cookie", result.Token, 7200, "/", "localhost", false, true)
+	//c.SetCookie("cookie",
+	//	result.Token,
+	//	7200,
+	//	"/",
+	//	// 本地测试时将 domain 留空
+	//	"localhost",
+	//	true,
+	//	true)
+
+	// 跨域认证
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "cookie",
+		Value:    result.Token,
+		Path:     "/",
+		Domain:   "localhost",
+		MaxAge:   7200,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "success",
 	})

@@ -3,6 +3,7 @@ package router
 import (
 	auth2 "CyberCafe/backend/internal/auth"
 	books2 "CyberCafe/backend/internal/books"
+	dashboard2 "CyberCafe/backend/internal/dashboard"
 	"CyberCafe/backend/internal/infra/db"
 	users2 "CyberCafe/backend/internal/users"
 	"github.com/gin-contrib/cors"
@@ -21,6 +22,7 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 		},
 		AllowOrigins: []string{
 			// 只允许前端访问
+			"http://localhost:9016",
 			"http://localhost:9017",
 			// 允许 Burp Suite 调试
 			"http://localhost:8080",
@@ -51,6 +53,11 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	userSvc := users2.NewService(userRepo)
 	userHandler := users2.NewHandler(userSvc)
 
+	// ===== 注入 dashboard 相关依赖 =====
+	dashboardRepo := dashboard2.NewPostgresRepo(pg.DB())
+	dashboardSvc := dashboard2.NewService(dashboardRepo)
+	dashboardHandler := dashboard2.NewHandler(dashboardSvc)
+
 	// ===== 跨域 =====
 	// 仅调试使用
 
@@ -63,23 +70,23 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 		c.JSON(http.StatusOK, gin.H{"message": "Hello world!"})
 	})
 
-	// ===== 登录路由组 =====
-
-	r.POST("/login", func(c *gin.Context) {
-		authHandler.LoginHandler(c)
-	})
-
-	r.POST("/register", func(c *gin.Context) {
-		userHandler.RegisterHandler(c)
-	})
-
-	r.GET("/logout", func(c *gin.Context) {
-		// TODO 登出
-	})
-
 	// ===== API 路由组 =====
 	api := r.Group("/api")
 	{
+		// ===== 登录路由组 =====
+
+		api.POST("/login", func(c *gin.Context) {
+			authHandler.LoginHandler(c)
+		})
+
+		api.POST("/register", func(c *gin.Context) {
+			userHandler.RegisterHandler(c)
+		})
+
+		api.GET("/logout", func(c *gin.Context) {
+			// TODO 登出
+		})
+
 		booksGroup := api.Group("/books")
 		{
 			booksGroup.POST("/query", bookHandler.BookQueryHandler)
@@ -123,7 +130,7 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 
 		}
 		{
-			authPages := booksGroup.Group("/me")
+			authPages := api.Group("/me")
 			authPages.Use(auth2.AuthRequired())
 			{
 				authPages.GET("/summary", func(c *gin.Context) {
@@ -132,8 +139,8 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 				authPages.GET("/bookshelf", func(c *gin.Context) {
 					userHandler.GetBookshelfHandler(c)
 				})
-				authPages.POST("/dashboard", func(c *gin.Context) {
-					// userHandler.DashboardHandler(c)
+				authPages.GET("/dashboard", func(c *gin.Context) {
+					dashboardHandler.DashboardHandler(c)
 				})
 			}
 		}

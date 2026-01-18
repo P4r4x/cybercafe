@@ -58,7 +58,7 @@ func (s *BookService) BookQueryService(ctx context.Context, q BookQuery) ([]*Boo
 }
 
 // BookBorrowService 借书服务
-func (s *BookService) BookBorrowService(ctx context.Context, q BookChangeRemainRequest) (interface{}, error) {
+func (s *BookService) BookBorrowService(ctx context.Context, uid string, q BookChangeRemainRequest) (interface{}, error) {
 
 	// 载入查询参数, 必须是唯一的参数
 	bookId := &q.ID
@@ -71,7 +71,7 @@ func (s *BookService) BookBorrowService(ctx context.Context, q BookChangeRemainR
 	if bookId == nil {
 		return nil, ErrBookNotFound
 	}
-	err := s.repo.AddRemain(ctx, *bookId, -*amount)
+	err := s.repo.AddRemain(ctx, uid, *bookId, -*amount)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (s *BookService) BookBorrowService(ctx context.Context, q BookChangeRemainR
 }
 
 // BookReturnService 归还服务
-func (s *BookService) BookReturnService(ctx context.Context, q BookChangeRemainRequest) (interface{}, error) {
+func (s *BookService) BookReturnService(ctx context.Context, uid string, q BookChangeRemainRequest) (interface{}, error) {
 
 	// 载入查询参数, 必须是唯一的参数
 	bookId := &q.ID
@@ -92,7 +92,7 @@ func (s *BookService) BookReturnService(ctx context.Context, q BookChangeRemainR
 	if bookId == nil {
 		return nil, ErrBookNotFound
 	}
-	err := s.repo.AddRemain(ctx, *bookId, *amount)
+	err := s.repo.AddRemain(ctx, uid, *bookId, *amount)
 	if err != nil {
 		return nil, err
 	}

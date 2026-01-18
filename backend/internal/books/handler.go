@@ -1,6 +1,7 @@
 package books
 
 import (
+	auth2 "CyberCafe/backend/internal/auth"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -71,6 +72,10 @@ func (h *BookHandler) BookQueryHandler(c *gin.Context) {
 func (h *BookHandler) BookChangeRemainHandler(c *gin.Context) {
 	var req BookChangeRemainRequest
 
+	// 0. 从 JWT 中获取用户 ID
+	claims := c.MustGet("claims").(*auth2.Claims) // 你已有
+	uid := claims.UID
+
 	// 1. 解析 JSON
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
@@ -99,7 +104,7 @@ func (h *BookHandler) BookChangeRemainHandler(c *gin.Context) {
 	switch action {
 	case Borrow:
 		// 3. 调用对应的 BookService
-		_, err := h.svc.BookBorrowService(c.Request.Context(), query)
+		_, err := h.svc.BookBorrowService(c.Request.Context(), uid, query)
 		if err != nil {
 			// 4. 错误处理, 状态码映射
 			ErrorHandler(err, c)
@@ -107,7 +112,7 @@ func (h *BookHandler) BookChangeRemainHandler(c *gin.Context) {
 		}
 	case Return:
 		// 3. 调用对应的 BookService
-		_, err := h.svc.BookReturnService(c.Request.Context(), query)
+		_, err := h.svc.BookReturnService(c.Request.Context(), uid, query)
 		if err != nil {
 			// 4. 错误处理, 状态码映射
 			ErrorHandler(err, c)

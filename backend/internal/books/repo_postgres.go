@@ -7,6 +7,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"log"
 	"strings"
+	"time"
 )
 
 type PostgresRepo struct {
@@ -78,42 +79,109 @@ func (r *PostgresRepo) Find(ctx context.Context, q BookQuery) ([]*Book, error) {
 	return books, nil
 }
 
-// AddRemain 增加 / 减少 图书余量 , 基于预编译和参数化查询
-func (r *PostgresRepo) AddRemain(ctx context.Context, bookID BookID, delta int) error {
-	const q = ` 
-		WITH target AS (
-			SELECT id, remain, total
-			FROM books
-			WHERE id = $2
-		),
-		updated AS (
-			UPDATE books b
-			SET remain = t.remain + $1
-			FROM target t
-			WHERE b.id = t.id
-			  AND t.remain + $1 >= 0
-			  AND t.remain + $1 <= t.total
-			RETURNING b.id
-)
-SELECT
-    EXISTS (SELECT 1 FROM target) AS exists,
-    EXISTS (SELECT 1 FROM updated) AS updated;`
-	var exists bool
-	var updated bool
-	err := r.db.QueryRowContext(ctx, q, delta, bookID).Scan(&exists, &updated)
+// AddRemain 增加 / 减少 图书余量 , 基于预编译和参数化查询, 同时生成记录
+func (r *PostgresRepo) AddRemain(
+	parent context.Context,
+	uid string,
+	bookID BookID,
+	delta int,
+) (err error) {
+
+	// 独立事务 context
+	ctx, cancel := context.WithTimeout(context.Background(), 9999*time.Second)
+	defer cancel()
+
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+	})
 	if err != nil {
 		return err
 	}
+
+	//  兜底 rollback, Commit 成功后会被忽略
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	// =============================
+	// 1. 更新 books 表 remain
+	// =============================
+	const qUpdate = `
+	WITH target AS (
+		SELECT id, remain, total
+		FROM books
+		WHERE id = $2
+	),
+	updated AS (
+		UPDATE books b
+		SET remain = t.remain + $1
+		FROM target t
+		WHERE b.id = t.id
+		  AND t.remain + $1 >= 0
+		  AND t.remain + $1 <= t.total
+		RETURNING b.id
+	)
+	SELECT
+		EXISTS (SELECT 1 FROM target)  AS exists,
+		EXISTS (SELECT 1 FROM updated) AS updated;
+	`
+
+	var exists, updated bool
+	if err = tx.QueryRowContext(ctx, qUpdate, delta, bookID).
+		Scan(&exists, &updated); err != nil {
+		return err
+	}
+
 	if !exists {
 		return ErrBookNotFound
 	}
 	if !updated {
+		// 根据 remain 正负判断借还
 		if delta < 0 {
 			return ErrNotEnoughRemain
 		}
 		return ErrExceedTotal
 	}
-	return nil
+
+	// =============================
+	// 2. 借还记录
+	// =============================
+	if delta < 0 {
+		const qInsertBorrow = `
+		INSERT INTO user_borrow_records
+		    (uid, book_id, amount, borrow_at, due_at)
+		VALUES ($1, $2, $3, now(), now() + interval '7 days')`
+		if _, err = tx.ExecContext(ctx, qInsertBorrow, uid, bookID, -delta); err != nil {
+			return err
+		}
+	}
+
+	if delta > 0 {
+		const qUpdateReturn = `
+		WITH to_update AS (
+			SELECT id
+			FROM user_borrow_records
+			WHERE uid = $1
+			  AND book_id = $2
+			  AND return_at IS NULL
+			ORDER BY borrow_at
+			LIMIT $3
+		)
+		UPDATE user_borrow_records
+		SET return_at = now()
+		WHERE id IN (SELECT id FROM to_update)
+		`
+		if _, err = tx.ExecContext(ctx, qUpdateReturn, uid, bookID, delta); err != nil {
+			return err
+		}
+	}
+
+	// =============================
+	// 3. 提交事务
+	// =============================
+	return tx.Commit()
 }
 
 func (r *PostgresRepo) AddStock(ctx context.Context, bookID BookID, delta int) error {

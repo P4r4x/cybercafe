@@ -1,23 +1,31 @@
-CREATE TABLE users (
-    id UUID PRIMARY KEY,
-    username TEXT NOT NULL UNIQUE,
-    userid BIGINT NOT NULL UNIQUE,
-    email TEXT NOT NULL UNIQUE,
-    phone TEXT UNIQUE,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'users',
-    status TEXT NOT NULL DEFAULT 'active',
-    user_group TEXT, 
-    extra JSONB NOT NULL DEFAULT '{}',
-    last_login_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMP DEFAULT  NULL
+create table public.users
+(
+    id            uuid                               not null
+        primary key,
+    username      text                               not null
+        unique
+        constraint uk_users_username
+            unique,
+    userid        bigint                             not null
+        unique
+        constraint uk_users_userid
+            unique,
+    email         text                               not null
+        unique
+        constraint uk_users_email
+            unique,
+    phone         text
+        unique
+        constraint uk_users_phone
+            unique,
+    password_hash text                               not null,
+    role          text      default 'users'::text    not null,
+    status        text      default 'inactive'::text not null,
+    extra         jsonb     default '{}'::jsonb      not null,
+    last_login_at timestamp,
+    created_at    timestamp default now()            not null,
+    delete_at     timestamp with time zone
 );
 
-ALTER TABLE users
-ADD CONSTRAINT uk_users_username UNIQUE (username),
-ADD CONSTRAINT uk_users_userid UNIQUE (userid),
-ADD CONSTRAINT uk_users_email UNIQUE (email),
-ADD CONSTRAINT uk_users_phone UNIQUE (phone);
-
-
+alter table public.users
+    owner to cybercafe;
