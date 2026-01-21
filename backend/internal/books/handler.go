@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strings"
 )
 
 type BookHandler struct {
@@ -157,4 +158,92 @@ func (h *BookHandler) BookAddStockHandler(c *gin.Context) {
 
 	// 4. 成功响应
 	c.JSON(http.StatusOK, gin.H{"message": "action success"})
+}
+
+func (h *BookHandler) BookSearchHandler(c *gin.Context) {
+	var req SearchBooksReq
+
+	// 1. 解析 JSON
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request body",
+		})
+		return
+	}
+
+	// 2. 至少一个条件
+	if req.Title == nil &&
+		req.Author == nil &&
+		req.Publisher == nil &&
+		req.PriceMin == nil &&
+		req.PriceMax == nil &&
+		req.HasRemain == nil &&
+		req.HasEbook == nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "at least one condition is required",
+		})
+		return
+	}
+
+	// 3. 文本字段过滤（trim + 长度限制）
+	const maxTextLen = 100
+
+	cleanText := func(s *string) error {
+		if s == nil {
+			return nil
+		}
+		v := strings.TrimSpace(*s)
+		if v == "" {
+			return errors.New("text field cannot be empty")
+		}
+		if len([]rune(v)) > maxTextLen {
+			return errors.New("text field too long")
+		}
+		*s = v
+		return nil
+	}
+
+	if err := cleanText(req.Title); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid title"})
+		return
+	}
+	if err := cleanText(req.Author); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid author"})
+		return
+	}
+	if err := cleanText(req.Publisher); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid publisher"})
+		return
+	}
+
+	// 4. price 区间校验
+	if req.PriceMin != nil && *req.PriceMin < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "price_min must be >= 0"})
+		return
+	}
+	if req.PriceMax != nil && *req.PriceMax < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "price_max must be >= 0"})
+		return
+	}
+	if req.PriceMin != nil && req.PriceMax != nil {
+		if *req.PriceMin > *req.PriceMax {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "price_min cannot be greater than price_max",
+			})
+			return
+		}
+	}
+
+	// 5. 调用 service
+	books, err := h.svc.BookSearchService(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": books,
+	})
 }

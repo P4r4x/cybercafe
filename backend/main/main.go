@@ -28,7 +28,14 @@ func main() {
 
 	// ====== 启动服务 ======
 
-	if err := engine.Run(":9016"); err != nil {
+	// if err := engine.Run(":9016"); err != nil {
+	//	log.Fatal(err)
+	//}
+
+	// HTTPS
+	if err := engine.RunTLS(":9016",
+		"backend/cert/backend.test.pem",
+		"backend/cert/backend.test-key.pem"); err != nil {
 		log.Fatal(err)
 	}
 }

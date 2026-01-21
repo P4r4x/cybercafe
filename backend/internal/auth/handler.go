@@ -93,7 +93,7 @@ func (h *CredentialHandler) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// 成功响应
+	//成功响应
 	//c.SetCookie("cookie",
 	//	result.Token,
 	//	7200,
@@ -108,10 +108,8 @@ func (h *CredentialHandler) LoginHandler(c *gin.Context) {
 		Name:     "cookie",
 		Value:    result.Token,
 		Path:     "/",
-		Domain:   "localhost",
-		MaxAge:   7200,
-		Secure:   true,
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
 	})
 

@@ -26,7 +26,7 @@ func NewPostgresRepo(db *sql.DB) BookRepo {
 func (r *PostgresRepo) Find(ctx context.Context, q BookQuery) ([]*Book, error) {
 	baseSQL := `
 		SELECT 
-    	uuid, id, title, author, publisher, total, remain, extra, created_at, updated_at 
+    	uuid, id, title, author, publisher, price, has_ebook, total, remain, extra, created_at, updated_at 
 		FROM books
 		`
 	var (
@@ -70,7 +70,7 @@ func (r *PostgresRepo) Find(ctx context.Context, q BookQuery) ([]*Book, error) {
 	for rows.Next() {
 		var b Book
 		if err := rows.Scan(
-			&b.UUID, &b.Id, &b.Title, &b.Author, &b.Publisher, &b.Total, &b.Remain, &b.Extra, &b.CreateAt, &b.UpdateAt,
+			&b.UUID, &b.Id, &b.Title, &b.Author, &b.Publisher, &b.Price, &b.HasEBook, &b.Total, &b.Remain, &b.Extra, &b.CreateAt, &b.UpdateAt,
 		); err != nil {
 			return nil, err
 		}
@@ -185,6 +185,7 @@ func (r *PostgresRepo) AddRemain(
 }
 
 func (r *PostgresRepo) AddStock(ctx context.Context, bookID BookID, delta int) error {
+
 	const q = ` 
 		WITH target AS (
 			SELECT id, remain, total
@@ -216,4 +217,133 @@ func (r *PostgresRepo) AddStock(ctx context.Context, bookID BookID, delta int) e
 		return ErrNotEnoughRemain
 	}
 	return nil
+}
+func (r *PostgresRepo) Search(ctx context.Context, q SearchBooksReq) ([]*Book, error) {
+	var sb strings.Builder
+
+	// ---- base query ----
+	sb.WriteString(`
+		SELECT
+			id,
+			title,
+			author,
+			publisher,
+			price,
+			remain,
+			has_ebook,
+			created_at
+		FROM books
+	`)
+
+	where := make([]string, 0)
+	args := make([]any, 0)
+	argIdx := 1
+
+	// ---- 文本模糊查询 ----
+	if q.Title != nil {
+		where = append(where, fmt.Sprintf(
+			"title ILIKE $%d", argIdx,
+		))
+		args = append(args, "%"+*q.Title+"%")
+		argIdx++
+	}
+
+	if q.Author != nil {
+		where = append(where, fmt.Sprintf(
+			"author ILIKE $%d", argIdx,
+		))
+		args = append(args, "%"+*q.Author+"%")
+		argIdx++
+	}
+
+	if q.Publisher != nil {
+		where = append(where, fmt.Sprintf(
+			"publisher ILIKE $%d", argIdx,
+		))
+		args = append(args, "%"+*q.Publisher+"%")
+		argIdx++
+	}
+
+	// ---- 价格区间 ----
+	if q.PriceMin != nil {
+		where = append(where, fmt.Sprintf(
+			"price >= $%d", argIdx,
+		))
+		args = append(args, *q.PriceMin)
+		argIdx++
+	}
+
+	if q.PriceMax != nil {
+		where = append(where, fmt.Sprintf(
+			"price <= $%d", argIdx,
+		))
+		args = append(args, *q.PriceMax)
+		argIdx++
+	}
+
+	// ---- 是否有余量 ----
+	if q.HasRemain != nil {
+		if *q.HasRemain {
+			where = append(where, "remain > 0")
+		} else {
+			where = append(where, "remain <= 0")
+		}
+	}
+
+	// ---- 是否有电子书 ----
+	if q.HasEbook != nil {
+		where = append(where, fmt.Sprintf(
+			"has_ebook = $%d", argIdx,
+		))
+		args = append(args, *q.HasEbook)
+		argIdx++
+	}
+
+	// ---- 拼接 WHERE ----
+	if len(where) > 0 {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(strings.Join(where, " AND "))
+	}
+
+	// ---- 默认排序 ----
+	sb.WriteString(" ORDER BY created_at DESC")
+
+	query := sb.String()
+
+	// ---- 执行查询 ----
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
+
+	// ---- 扫描结果 ----
+	books := make([]*Book, 0)
+	for rows.Next() {
+		var b Book
+		if err := rows.Scan(
+			&b.Id,
+			&b.Title,
+			&b.Author,
+			&b.Publisher,
+			&b.Price,
+			&b.Remain,
+			&b.HasEBook,
+			&b.CreateAt,
+		); err != nil {
+			return nil, err
+		}
+		books = append(books, &b)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return books, nil
 }

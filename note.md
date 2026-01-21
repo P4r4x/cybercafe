@@ -13,6 +13,8 @@
 |(后端) 鉴权, 跨域认证(mvp)|complete|
 |(后端) 登录注册界面|complete|
 |(前端) 登录注册界面|complete|
+|(后端) 借还记录功能|complete|
+|(前端) 用户中心, 仪表盘主页| in progress|
 |(前端) 浏览器缓存机制|TODO|
 |admin 功能|TODO|
 |人员管理|TODO|
@@ -418,7 +420,39 @@ AllowCredentials: true
 - Content-Type: application/json ❌（不是 simple header）
 - POST + JSON body ❌
 
+#### 跨域认证
+
+从不同端口收发数据属于跨域, 需要做跨域鉴权; 有几种解决方式:
+
+ - 临时调试:
+
+```go
+	// 成功响应
+	// c.SetCookie("cookie",
+	// 	result.Token,
+	// 	7200,
+	// 	"/",
+	// 	// 本地测试时将 domain 留空
+	// 	"localhost",
+	// 	true,
+	// 	true)
+
+	// 调试配置: 允许跨站
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "cookie",
+		Value:    result.Token,
+		Path:     "/",
+		Domain:   "localhost",
+		MaxAge:   7200,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode, // *
+	})
+```
+
 ### 前端发起查询的参数设计
+
+> 2026/01/15
 
 前端永远不应该可以直接在 post 或 get 的参数中直接涉及查询参数, 相反, 应该存放在 JWT 中; 因为 JWT 存在签名机制, 用户无法篡改, 否则无法通过服务端的校验;
 
@@ -435,6 +469,19 @@ AllowCredentials: true
 > 2026/01/18
 
 前端仪表盘功能汇总:
+
+### mkcert HTTPS 服务
+
+github: [mkcert](https://github.com/FiloSottile/mkcert/releases/tag/v1.4.4)
+
+> 2026/01/21
+
+```bash
+mkcert -install
+mkcert localhost 127.0.0.1 ::1
+```
+
+
 
 1️⃣ 用户态内容
 
@@ -461,6 +508,68 @@ AllowCredentials: true
 显然这三个表都需要与 user 表直接相连, 这里涉及到一个外键设计问题, 现在有很多大型项目在设计数据库的时候会**禁用物理外键+级联**, 把数据库的约束放到应用层由程序员显式解决; 这么做的原因是: 1. 高并发场景下, 物理外键会引起数据库额外开销, 容易形成性能瓶颈; 2. 维护外键约束时, 尤其是删除操作中, 需要对相关表加表级锁, 容易阻塞影响吞吐; 
 
 这里本项目的 PG 就发挥了优势: PG 的外键实现更优 (说的就是 Mysql), 使用了更优的表级锁, 只要不频繁发起大规模删除操作, 就不容易阻塞; 
+
+### context 生命周期和事务一致性
+
+> 2026/01/18
+
+在 Go 使用 `database/sql` 与 PostgreSQL 交互时，`context.Context` 不仅用于超时控制，也直接影响数据库连接与事务的生命周期。
+
+### 跨域认证 2.0
+
+> 2026/01/21
+
+一开始做前后端分离，用的是 Cookie + JWT，前端 9017，后端 9016，看起来一切配置都对：
+
+- 后端 `Set-Cookie`
+- CORS 开 `AllowCredentials`
+- 前端 `fetch(..., credentials: "include")`
+
+但实际各种怪问题接连出现。
+
+#### 第一坑: Cookie 明明 Set 了, 后续请求不带
+
+是浏览器策略的问题; 
+
+需要 `SameSite=None`; `Secure=true`, 但是 `Secure=true` 需要 HTTPS
+
+#### 第二坑：HTTPS 上了，Chrome 能用，Firefox 不行
+
+表现：
+- Chrome：正常登录
+- Firefox：*failed to fetch*，后端压根没收到请求
+
+原因：
+- Firefox 对 localhost + HTTPS + 跨域 + Cookie 极度严格
+- localhost 在 HTTPS 场景下就是个雷
+
+#### 第三坑：Firefox + Burp 更炸
+
+即使信任了 PortSwigger CA, Firefox 仍然拒绝 `https://localhost`
+
+最可能的原因:
+  Firefox 对 localhost 的 TLS 和 MITM 有额外限制
+
+#### 最终解法
+
+不用 localhost;
+
+hosts 里面放域名:
+
+```
+127.0.0.1 frontend.test
+127.0.0.1 backend.test
+```
+
+mkcert 生成域名:
+
+```
+mkcert frontend.test 
+mkcert backend.test
+```
+
+前后端都用 HTTPS + 域名跑; 调试不用 Burpsuite, 用 Chrome 自带监控够用;
+早点上域名和证书，反而少踩坑。
 
 ## 测试数据:
 
@@ -563,6 +672,5 @@ src/
 
 > 例如, 一个记录点击次数的功能, 假设按一个按钮就会使得计数 +1 , 此处如果不用 useState, 那么即使计数值发生了改变, 由于前端没有重新渲染, 用户将看不见值改变;
 
-谭松韵
-
 ###
+

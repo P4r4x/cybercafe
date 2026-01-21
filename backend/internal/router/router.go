@@ -6,10 +6,11 @@ import (
 	dashboard2 "CyberCafe/backend/internal/dashboard"
 	"CyberCafe/backend/internal/infra/db"
 	users2 "CyberCafe/backend/internal/users"
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
@@ -17,13 +18,13 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 
 	// 调试配置, 生产时用下方注释
 	r.Use(cors.New(cors.Config{
-		AllowOriginFunc: func(origin string) bool {
-			return true
-		},
+		//AllowOriginFunc: func(origin string) bool {
+		//	return true
+		//},
 		AllowOrigins: []string{
 			// 只允许前端访问
-			"http://localhost:9016",
-			"http://localhost:9017",
+			"https://frontend.test:9017",
+			"https://frontend.test:9016",
 			// 允许 Burp Suite 调试
 			"http://localhost:8080",
 			"http://burp",
@@ -112,6 +113,9 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 					// TODO 购买
 					c.JSON(http.StatusOK, gin.H{"message": "TODO 购买"})
 				})
+
+				// 复合查询 (搜书)
+				authBooks.POST("/search", bookHandler.BookQueryHandler)
 
 				// 向书架添加图书
 				authBooks.GET("/add/:id", userHandler.AddBookHandler)

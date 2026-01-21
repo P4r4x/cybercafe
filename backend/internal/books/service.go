@@ -9,26 +9,6 @@ type BookService struct {
 	repo BookRepo
 }
 
-// BookQuery 查询图书参数
-type BookQuery struct {
-	ID        *BookID `json:"id"`
-	Title     *string `json:"title"`
-	Author    *string `json:"author"`
-	Publisher *string `json:"publisher"`
-}
-
-// BookChangeRemainRequest 借阅图书参数
-type BookChangeRemainRequest struct {
-	ID     BookID `json:"id"`
-	Amount int    `json:"amount"`
-}
-
-// BookChangeStockRequest 修改图书库存服务
-type BookChangeStockRequest struct {
-	ID     BookID `json:"id"`
-	Amount int    `json:"amount"`
-}
-
 // ====== 报错信息 ======
 
 // ErrBookNotFound 获取图书失败
@@ -100,6 +80,7 @@ func (s *BookService) BookReturnService(ctx context.Context, uid string, q BookC
 
 }
 
+// BookAddStockService 增减库存服务
 func (s *BookService) BookAddStockService(ctx context.Context, q BookChangeStockRequest) (interface{}, error) {
 
 	// 载入查询参数, 必须是唯一的参数
@@ -115,4 +96,16 @@ func (s *BookService) BookAddStockService(ctx context.Context, q BookChangeStock
 		return nil, err
 	}
 	return "success", nil
+}
+
+// BookSearchService 搜索图书服务 (复合查询)
+func (s *BookService) BookSearchService(ctx context.Context, q SearchBooksReq) ([]*Book, error) {
+
+	// TODO 增加搜索限制和返回条目
+	result, err := s.repo.Search(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+
 }

@@ -9,6 +9,7 @@ import {
   Crown,
   Coffee,
   MapPin,
+  Search, 
 } from "lucide-react"
 import { useNavigate, useLocation, Outlet } from "react-router-dom"
 
@@ -19,6 +20,7 @@ type Props = {
 const menu = [
   { name: "主页", icon: Home, path: "/dashboard" },
 
+  { name: "搜书", icon: Search, path: "/search" },
   { name: "电子书架", icon: Library, path: "/bookshelf" },
   { name: "实体书借阅", icon: BookOpen, path: "/borrow" },
 
