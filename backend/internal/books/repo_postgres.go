@@ -267,17 +267,17 @@ func (r *PostgresRepo) Search(ctx context.Context, q SearchBooksReq) ([]*Book, e
 	// ---- 价格区间 ----
 	if q.PriceMin != nil {
 		where = append(where, fmt.Sprintf(
-			"price >= $%d", argIdx,
+			"price >= $%d", argIdx, // argIdx 是 int，%d 正确
 		))
-		args = append(args, *q.PriceMin)
+		args = append(args, *q.PriceMin) // *q.PriceMin 是 decimal.Decimal
 		argIdx++
 	}
 
 	if q.PriceMax != nil {
 		where = append(where, fmt.Sprintf(
-			"price <= $%d", argIdx,
+			"price <= $%d", argIdx, // 同上
 		))
-		args = append(args, *q.PriceMax)
+		args = append(args, *q.PriceMax) // *q.PriceMax 是 decimal.Decimal
 		argIdx++
 	}
 

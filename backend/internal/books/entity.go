@@ -3,6 +3,7 @@ package books
 import (
 	"CyberCafe/backend/internal/infra/db"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/shopspring/decimal"
 	"time"
 )
 
@@ -51,11 +52,11 @@ type BookChangeStockRequest struct {
 // 全部用指针的好处是, 如果某个字段为空, 则不会被赋值 (nil)
 // 和空值相区分, 这么做非常干净
 type SearchBooksReq struct {
-	Title     *string `json:"title"`
-	Author    *string `json:"author"`
-	Publisher *string `json:"publisher"`
-	PriceMin  *int    `json:"price_min"`
-	PriceMax  *int    `json:"price_max"`
-	HasRemain *bool   `json:"has_remain"`
-	HasEbook  *bool   `json:"has_ebook"`
+	Title     *string          `json:"title"`
+	Author    *string          `json:"author"`
+	Publisher *string          `json:"publisher"`
+	PriceMin  *decimal.Decimal `json:"price_min"`
+	PriceMax  *decimal.Decimal `json:"price_max"`
+	HasRemain *bool            `json:"has_remain"`
+	HasEbook  *bool            `json:"has_ebook"`
 }

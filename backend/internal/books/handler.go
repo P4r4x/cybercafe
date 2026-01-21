@@ -4,6 +4,7 @@ import (
 	auth2 "CyberCafe/backend/internal/auth"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 	"net/http"
 	"strings"
 )
@@ -217,16 +218,16 @@ func (h *BookHandler) BookSearchHandler(c *gin.Context) {
 	}
 
 	// 4. price 区间校验
-	if req.PriceMin != nil && *req.PriceMin < 0 {
+	if req.PriceMin != nil && req.PriceMin.LessThan(decimal.Zero) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "price_min must be >= 0"})
 		return
 	}
-	if req.PriceMax != nil && *req.PriceMax < 0 {
+	if req.PriceMax != nil && req.PriceMax.LessThan(decimal.Zero) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "price_max must be >= 0"})
 		return
 	}
 	if req.PriceMin != nil && req.PriceMax != nil {
-		if *req.PriceMin > *req.PriceMax {
+		if req.PriceMin.GreaterThan(*req.PriceMax) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "price_min cannot be greater than price_max",
 			})

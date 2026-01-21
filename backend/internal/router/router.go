@@ -115,7 +115,7 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 				})
 
 				// 复合查询 (搜书)
-				authBooks.POST("/search", bookHandler.BookQueryHandler)
+				authBooks.POST("/search", bookHandler.BookSearchHandler)
 
 				// 向书架添加图书
 				authBooks.GET("/add/:id", userHandler.AddBookHandler)

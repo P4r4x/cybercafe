@@ -20,7 +20,7 @@ type Props = {
 const menu = [
   { name: "主页", icon: Home, path: "/dashboard" },
 
-  { name: "搜书", icon: Search, path: "/search" },
+  { name: "搜书", icon: Search, path: "/search_book" },
   { name: "电子书架", icon: Library, path: "/bookshelf" },
   { name: "实体书借阅", icon: BookOpen, path: "/borrow" },
 
@@ -36,7 +36,7 @@ export default function MainLayout({ children }: Props) {
   const location = useLocation()
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#fdf6ee]">
+    <div className="flex h-screen w-screen overflow-y-auto bg-[#fdf6ee]">
       {/* Sidebar */}
       <aside
         onMouseEnter={() => setExpanded(true)}
@@ -81,7 +81,7 @@ export default function MainLayout({ children }: Props) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-y-auto">
         <div className="h-full p-6">
           {children ?? <Outlet />}
         </div>
