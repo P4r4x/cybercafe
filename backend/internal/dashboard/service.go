@@ -13,6 +13,7 @@ func NewService(repo DashboardRepo) *DashboardService {
 	return &DashboardService{repo: repo}
 }
 
+// GetDashboardService 获取仪表盘数据服务
 func (s *DashboardService) GetDashboardService(ctx context.Context, uid string) (*DashboardResponse, error) {
 
 	// 对结果进行初始化
@@ -20,8 +21,7 @@ func (s *DashboardService) GetDashboardService(ctx context.Context, uid string) 
 		User: UserInfo{
 			UID: uid,
 		},
-		Stats:  BorrowStats{},
-		Recent: []BorrowItem{},
+		Stats: BorrowStats{},
 	}
 
 	// 1. 用户信息
@@ -34,12 +34,7 @@ func (s *DashboardService) GetDashboardService(ctx context.Context, uid string) 
 		resp.Stats = *stats
 	}
 
-	// 3. 最近借阅
-	if recent, err := s.repo.GetRecentBorrows(ctx, uid, 5); err == nil {
-		resp.Recent = recent
-	}
-
-	// 4. 根据等级规则注入 ExpRequired & BorrowLimit, 根据用户等级返回等级参数
+	// 3. 根据等级规则注入 ExpRequired & BorrowLimit, 根据用户等级返回等级参数
 	currentRule, nextRule, err := rules.GetLevelRule(resp.User.Level)
 	if err != nil {
 		return nil, err
@@ -57,4 +52,17 @@ func (s *DashboardService) GetDashboardService(ctx context.Context, uid string) 
 	}
 
 	return resp, nil
+}
+
+// BorrowHistoryService 获取最近借阅
+func (s *DashboardService) BorrowHistoryService(ctx context.Context, uid string, limit int) ([]BorrowItem, error) {
+
+	resp := &RecentRecords{}
+
+	// 最近借阅
+	if recent, err := s.repo.GetRecentBorrows(ctx, uid, 5); err == nil {
+		resp.Records = recent
+	}
+
+	return resp.Records, nil
 }

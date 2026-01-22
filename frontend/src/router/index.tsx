@@ -3,6 +3,7 @@ import Login from "@/features/auth/pages/Login"
 import Dashboard from "@/pages/Dashboard"
 import MainLayout from "@/layouts/MainLayout"
 import SearchBook from "@/pages/SearchBook"
+import BookDetail from "@/pages/BookDetail"
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +22,13 @@ export const router = createBrowserRouter([
     element:
       <MainLayout>
         <SearchBook />
+      </MainLayout>,
+  },
+  {
+    path: "/search_books/:id",
+    element:
+      <MainLayout>
+        <BookDetail />
       </MainLayout>,
   }
 ])

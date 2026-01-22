@@ -114,6 +114,9 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 					c.JSON(http.StatusOK, gin.H{"message": "TODO 购买"})
 				})
 
+				// 获取图书详情
+				authBooks.GET("/:id", bookHandler.BookDetailHandler)
+
 				// 复合查询 (搜书)
 				authBooks.POST("/search", bookHandler.BookSearchHandler)
 
@@ -145,6 +148,9 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 				})
 				authPages.GET("/dashboard", func(c *gin.Context) {
 					dashboardHandler.DashboardHandler(c)
+				})
+				authPages.GET("/recent_book_records", func(c *gin.Context) {
+					dashboardHandler.RecentRecordsHandler(c)
 				})
 			}
 		}

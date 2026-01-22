@@ -1,6 +1,7 @@
 package books
 
 import (
+	"CyberCafe/backend/internal/rules"
 	"context"
 	"errors"
 )
@@ -23,6 +24,15 @@ var ErrNotEnoughRemain = errors.New("not enough remain")
 // ErrExceedTotal 图书余量溢出
 var ErrExceedTotal = errors.New("exceed total")
 
+// ErrUserHasOverdue 用户有逾期的借阅记录
+var ErrUserHasOverdue = errors.New("user has overdue records")
+
+// ErrBorrowLimitExceeded 借阅额度溢出
+var ErrBorrowLimitExceeded = errors.New("borrow limit exceeded")
+
+// ErrUserNotFound 未找到 用户
+var ErrUserNotFound = errors.New("user not found")
+
 func NewService(repo BookRepo) *BookService {
 	return &BookService{repo: repo}
 }
@@ -44,15 +54,39 @@ func (s *BookService) BookBorrowService(ctx context.Context, uid string, q BookC
 	bookId := &q.ID
 	amount := &q.Amount
 
-	// 参数校验
+	// 1. 参数校验
 	if *amount <= 0 {
 		return nil, ErrInvalidAmount
 	}
 	if bookId == nil {
 		return nil, ErrBookNotFound
 	}
-	err := s.repo.AddRemain(ctx, uid, *bookId, -*amount)
+
+	// 2. 借阅状态检查
+	status, err := s.repo.GetUserBorrowStatus(ctx, uid)
 	if err != nil {
+		return nil, err
+	}
+	if status.HasOverdue {
+		return nil, ErrUserHasOverdue
+	}
+
+	// 3. 用户等级 & 借阅额度
+	level, err := s.repo.GetUserLevel(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	rule, _, err := rules.GetLevelRule(level)
+	if err != nil {
+		return nil, err
+	}
+
+	if status.UsedAmount >= rule.BorrowLimit {
+		return nil, ErrBorrowLimitExceeded
+	}
+
+	// 4. 借书事务以及写记录
+	if err := s.repo.AddRemain(ctx, uid, *bookId, -*amount); err != nil {
 		return nil, err
 	}
 	return "success", nil

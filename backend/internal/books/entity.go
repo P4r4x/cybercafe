@@ -12,18 +12,18 @@ type BookID string
 type JSONMap map[string]string
 
 type Book struct {
-	UUID      pgtype.UUID `json:"uuid"`
-	Id        BookID      `json:"id"`
-	Total     int         `json:"total"`
-	Remain    int         `json:"remain"`
-	Title     string      `json:"title"`
-	Author    string      `json:"author"`
-	Publisher string      `json:"publisher"`
-	Price     float64     `json:"price"`
-	HasEBook  bool        `json:"has_ebook"`
-	Extra     db.JSONMap  `json:"extra"`
-	CreateAt  time.Time   `json:"created_at"`
-	UpdateAt  time.Time   `json:"updated_at"`
+	UUID      pgtype.UUID     `json:"uuid"`
+	Id        BookID          `json:"id"`
+	Total     int             `json:"total"`
+	Remain    int             `json:"remain"`
+	Title     string          `json:"title"`
+	Author    string          `json:"author"`
+	Publisher string          `json:"publisher"`
+	Price     decimal.Decimal `json:"price"`
+	HasEBook  bool            `json:"has_ebook"`
+	Extra     db.JSONMap      `json:"extra"`
+	CreateAt  time.Time       `json:"created_at"`
+	UpdateAt  time.Time       `json:"updated_at"`
 }
 
 // BookQuery 查询图书参数
@@ -34,6 +34,11 @@ type BookQuery struct {
 	Title     *string `json:"title"`
 	Author    *string `json:"author"`
 	Publisher *string `json:"publisher"`
+}
+
+// BookDetailQuery 获取图书详情参数
+type BookDetailQuery struct {
+	ID *BookID `json:"id"`
 }
 
 // BookChangeRemainRequest 借阅图书参数
@@ -59,4 +64,10 @@ type SearchBooksReq struct {
 	PriceMax  *decimal.Decimal `json:"price_max"`
 	HasRemain *bool            `json:"has_remain"`
 	HasEbook  *bool            `json:"has_ebook"`
+}
+
+// BorrowStatus 用户借阅状态, 是否有逾期, 借阅可用额度
+type BorrowStatus struct {
+	HasOverdue bool
+	UsedAmount int
 }

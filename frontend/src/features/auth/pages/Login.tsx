@@ -16,9 +16,13 @@ const API_BASE = import.meta.env.VITE_API_BASE
 type Mode = "login" | "register"
 type LoginIdentity = "username" | "email"
 
+interface RegisterSuccessData {
+  user_id: string
+}
+
 interface SuccessResponse {
   message: "success"
-  data?: string
+  data?: RegisterSuccessData
 }
 
 interface ErrorResponse {
@@ -125,7 +129,7 @@ export default function AuthPage() {
       }
 
       if (mode === "register" && data.data) {
-        toast.show("success", `注册成功 🎉 用户ID：${data.data}`)
+        toast.show("success", `注册成功 🎉 用户ID：${data.data.user_id}`)
       } else {
         toast.show("success", "登录成功，欢迎回来 ✦")
         navigate("/dashboard")

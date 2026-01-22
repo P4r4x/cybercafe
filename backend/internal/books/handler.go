@@ -248,3 +248,24 @@ func (h *BookHandler) BookSearchHandler(c *gin.Context) {
 		"items": books,
 	})
 }
+
+func (h *BookHandler) BookDetailHandler(c *gin.Context) {
+
+	// 从 GET 里获取 book_id
+	// 从 URL 路径中获取 book_id 参数
+	bookIDStr := c.Param("id")
+	if bookIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "book id is required"})
+		return
+	}
+	bookID := BookID(bookIDStr)
+
+	// 调用 BookService
+	books, err := h.svc.BookQueryService(c.Request.Context(), BookQuery{ID: &bookID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+	}
+	c.JSON(http.StatusOK, books)
+}

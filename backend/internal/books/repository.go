@@ -7,4 +7,6 @@ type BookRepo interface {
 	AddRemain(ctx context.Context, uid string, bookID BookID, delta int) error
 	AddStock(ctx context.Context, bookID BookID, delta int) error
 	Search(ctx context.Context, q SearchBooksReq) ([]*Book, error)
+	GetUserBorrowStatus(ctx context.Context, uid string) (BorrowStatus, error)
+	GetUserLevel(ctx context.Context, uid string) (int, error)
 }

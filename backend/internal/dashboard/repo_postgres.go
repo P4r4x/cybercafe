@@ -75,9 +75,10 @@ func (r *PostgresRepo) GetRecentBorrows(ctx context.Context, uid string, limit i
 			&item.BookID,
 			&item.Title,
 			&item.BorrowAt,
+			&item.DueAt,
 			&item.ReturnAt,
 		); err != nil {
-			continue
+			return nil, err
 		}
 		res = append(res, item)
 	}

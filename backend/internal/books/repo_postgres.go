@@ -3,6 +3,7 @@ package books
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"log"
@@ -346,4 +347,59 @@ func (r *PostgresRepo) Search(ctx context.Context, q SearchBooksReq) ([]*Book, e
 	}
 
 	return books, nil
+}
+
+func (r *PostgresRepo) GetUserLevel(ctx context.Context, uid string) (int, error) {
+	const query = `
+		SELECT level
+		FROM user_account
+		WHERE uid = $1
+	`
+
+	var level int
+	err := r.db.QueryRowContext(ctx, query, uid).Scan(&level)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrUserNotFound
+		}
+		return 0, err
+	}
+
+	return level, nil
+}
+
+// GetUserBorrowStatus 获取用户借阅状态, 返回借阅状态, 两部分: 是否逾期, 和 借阅可用额度
+func (r *PostgresRepo) GetUserBorrowStatus(ctx context.Context, uid string) (BorrowStatus, error) {
+	const query = `
+		SELECT
+			-- 是否存在逾期
+			COALESCE(
+				BOOL_OR(
+					return_at IS NULL
+					AND due_at < NOW()
+				),
+				FALSE
+			) AS has_overdue,
+
+			-- 当前未归还的借阅数量总和
+			COALESCE(
+				SUM(amount) FILTER (
+					WHERE return_at IS NULL
+				),
+				0
+			) AS used_amount
+		FROM user_borrow_records
+		WHERE uid = $1
+	`
+
+	var status BorrowStatus
+	err := r.db.QueryRowContext(ctx, query, uid).Scan(
+		&status.HasOverdue,
+		&status.UsedAmount,
+	)
+	if err != nil {
+		return BorrowStatus{}, err
+	}
+
+	return status, nil
 }

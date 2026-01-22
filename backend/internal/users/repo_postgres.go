@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/jackc/pgx/v5/pgconn"
+	"time"
 )
 
 type PostgresRepo struct {
@@ -26,58 +27,79 @@ var (
 	ErrUserIDExists   = errors.New("userid already exists")
 )
 
+// Register 注册, 向 users 和 user_account 表中插入数据
 func (p PostgresRepo) Register(c context.Context, d *RegisterInfoDetail) (RegisterResult, error) {
 
-	const baseSQL = `
-        INSERT INTO users (
-            id,
-            username,
-            userid,
-            email,
-            phone,
-            password_hash
-        )
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING userid;
-    `
+	// 涉及多条查询的事务时, 使用独立的 ctx
+	ctx, cancel := context.WithTimeout(context.Background(), 9999*time.Second)
+	defer cancel()
+
+	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+	})
+	if err != nil {
+		return RegisterResult{}, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	// ---------- 1. 插入 users ----------
+	const insertUserSQL = `
+		INSERT INTO users (
+			id,
+			username,
+			userid,
+			email,
+			phone,
+			password_hash
+		)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING userid;
+	`
 
 	var userID string
-
-	err := p.db.QueryRowContext(
-		c,
-		baseSQL,
-		d.ID, // UUID
+	err = tx.QueryRowContext(
+		ctx,
+		insertUserSQL,
+		d.ID,
 		d.Username,
-		d.UserID, // 你生成的 9+ 位数字
+		d.UserID,
 		d.Email,
-		d.Phone, // *string / sql.NullString
+		d.Phone,
 		d.PasswordHash,
 	).Scan(&userID)
 
-	if err == nil {
-		return RegisterResult{UserID: userID}, nil
+	if err != nil {
+		return RegisterResult{}, parsePgRegisterError(err)
 	}
 
-	// ----- 解析 postgres 错误 -----
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		// unique_violation
-		if pgErr.Code == "23505" {
-			switch pgErr.ConstraintName {
-			case "users_username_key":
-				return RegisterResult{}, ErrUsernameExists
-			case "users_email_key":
-				return RegisterResult{}, ErrEmailExists
-			case "users_phone_key":
-				return RegisterResult{}, ErrPhoneExists
-			case "users_userid_key":
-				return RegisterResult{}, ErrUserIDExists
-			}
-		}
+	// ---------- 2. 初始化 user_account ----------
+	const insertAccountSQL = `
+		INSERT INTO user_account (
+			uid,
+			balance,
+			exp,
+			level,
+			status
+		)
+		VALUES ($1, 0, 0, 1, 'active');
+	`
+
+	_, err = tx.ExecContext(ctx, insertAccountSQL, userID)
+	if err != nil {
+		return RegisterResult{}, err
 	}
 
-	// 未知数据库错误
-	return RegisterResult{}, err
+	// ---------- 3. 提交事务 ----------
+	if err = tx.Commit(); err != nil {
+		return RegisterResult{}, err
+	}
+
+	return RegisterResult{UserID: userID}, nil
+
 }
 
 func (p PostgresRepo) GetAccount(c context.Context, uid string) (*UserAccount, error) {
@@ -165,4 +187,23 @@ func (p PostgresRepo) AddBook(uid string, bookID string) error {
 	}
 
 	return nil
+}
+
+func parsePgRegisterError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		if pgErr.Code == "23505" {
+			switch pgErr.ConstraintName {
+			case "users_username_key":
+				return ErrUsernameExists
+			case "users_email_key":
+				return ErrEmailExists
+			case "users_phone_key":
+				return ErrPhoneExists
+			case "users_userid_key":
+				return ErrUserIDExists
+			}
+		}
+	}
+	return err
 }
