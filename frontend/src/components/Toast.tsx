@@ -62,11 +62,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 const toastStyle: Record<ToastType, string> = {
   success:
-    "bg-gradient-to-r from-pink-300 to-orange-300 text-white",
+    "bg-gradient-to-r from-pink-300 to-rose-300 text-white",      // 樱花成功
   error:
-    "bg-gradient-to-r from-rose-400 to-red-400 text-white",
+    "bg-gradient-to-r from-red-400 to-rose-400 text-white",        // 红色错误
   info:
-    "bg-gradient-to-r from-orange-200 to-pink-200 text-gray-800",
+    "bg-gradient-to-r from-orange-200 to-pink-200 text-gray-800", // 白桃信息
 }
 
 const iconMap: Record<ToastType, JSX.Element> = {

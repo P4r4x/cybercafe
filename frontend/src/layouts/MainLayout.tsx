@@ -4,7 +4,6 @@
 import { useState, ReactNode } from "react"
 import {
   Home,
-  BookOpen,
   Library,
   Crown,
   Coffee,
@@ -21,13 +20,13 @@ const menu = [
   { name: "主页", icon: Home, path: "/dashboard" },
 
   { name: "搜书", icon: Search, path: "/search_book" },
-  { name: "电子书架", icon: Library, path: "/bookshelf" },
-  { name: "实体书借阅", icon: BookOpen, path: "/borrow" },
+  { name: "书架", icon: Library, path: "/bookshelf" },
+  { name: "茶饮", icon: Coffee, path: "/shop" },
 
   { name: "会员中心", icon: Crown, path: "/member" },
 
   { name: "座位预订", icon: MapPin, path: "/seats" },
-  { name: "点单", icon: Coffee, path: "/order" },
+  
 ]
 
 export default function MainLayout({ children }: Props) {

@@ -316,7 +316,7 @@ export default function AuthPage() {
             <span>
               已有账号？{" "}
               <button
-                className="text-orange-500"
+                className="text-rose-500"
                 onClick={() => setMode("login")}
               >
                 去登录

@@ -4,6 +4,8 @@ import Dashboard from "@/pages/Dashboard"
 import MainLayout from "@/layouts/MainLayout"
 import SearchBook from "@/pages/SearchBook"
 import BookDetail from "@/pages/BookDetail"
+import Bookshelf from "@/pages/Bookshelf"
+import ShopMenu from "@/pages/ShopMenu"
 
 export const router = createBrowserRouter([
   {
@@ -29,6 +31,20 @@ export const router = createBrowserRouter([
     element:
       <MainLayout>
         <BookDetail />
+      </MainLayout>,
+  },
+  {
+    path: "/bookshelf",
+    element:
+      <MainLayout>
+        <Bookshelf />
+      </MainLayout>,
+  },
+  {
+    path: "/shop",
+    element:
+      <MainLayout>
+        <ShopMenu />
       </MainLayout>,
   }
 ])
