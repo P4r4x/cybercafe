@@ -75,7 +75,7 @@ func (h *BookHandler) BookChangeRemainHandler(c *gin.Context) {
 	var req BookChangeRemainRequest
 
 	// 0. 从 JWT 中获取用户 ID
-	claims := c.MustGet("claims").(*auth2.Claims) // 你已有
+	claims := c.MustGet("claims").(*auth2.Claims)
 	uid := claims.UID
 
 	// 1. 解析 JSON

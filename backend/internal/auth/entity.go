@@ -12,7 +12,7 @@ type Credential struct {
 type LoginInfo struct {
 	Email    *string `json:"email"`
 	Username *string `json:"username"`
-	Password *string `json:"password"`
+	Password string  `json:"password" binding:"required"`
 }
 
 type LoginResult struct {

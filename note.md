@@ -14,15 +14,13 @@
 |(后端) 登录注册界面|complete|
 |(前端) 登录注册界面|complete|
 |(后端) 借还记录功能|complete|
-|(前端) 用户中心, 仪表盘主页| in progress|
-|(前端) 浏览器缓存机制|TODO|
-|admin 功能|TODO|
+|(前端) 仪表盘主页|complete|
+|WebUI (基本前端)|complete|
+|借还记录|complete|
+|购物车, 取餐点餐|in progress|
 |人员管理|TODO|
-|借还记录|TODO|
 |订座订购功能|TODO|
 |接入 Redis| TODO |
-|WebUI (基本前端)|TODO|
-|前端美化|TODO|
 |移动端|TODO|
 |应用安全|TODO|
 
@@ -617,6 +615,114 @@ Search 页面在跳转到 Detail 后 **被卸载**，返回时是一个 **全新
 - 状态设计本质是 生命周期设计
 - URL 才是真正跨生命周期的状态边界
 
+### 查询结构体: 指针设计
+
+查询参数使用指针的优势验证: 
+
+1. 精确查询:
+
+```go
+// 用户想查标题为空字符串的书籍
+req := BookQuery{Title: &""}
+// SQL: WHERE title = ''
+
+// 用户想忽略标题条件
+req := BookQuery{}
+// SQL: 不包含title条件
+```
+
+2. 复合查询
+
+```
+// 查询价格为0的书籍
+req := SearchBooksReq{PriceMin: &decimal.Zero}
+// SQL: WHERE price >= 0
+
+// 忽略价格条件  
+req := SearchBooksReq{}
+// SQL: 不包含价格条件
+```
+
+虽然这个例子有点偏离实际, 但意思大概就是这个样子; 涉及和前端传参, 尤其是 POST 表单对接的时候, 需要注意, 非必选项使用指针更好;
+
+### 登出功能
+
+由于用了 httpOnly 的 cookie, 登出页面需要走后端接口, 因为 js 是**无权访问**这种 cookie 的; 登出只需要在后端 setcookie, 设置一个空 cookie, 且过期即可; 这样也没必要再走一次校验; 
+
+### 进一步学习 Cookie (跨域认证 3.0)
+
+这篇专栏很有帮助: [知乎专栏](https://zhuanlan.zhihu.com/p/354215929)
+
+
+|请求类型|	Lax模式|	Strict模式|	None模式|
+|-------|---------|---------|--------|
+|同站导航|	✅ 允许|	✅ 允许|	✅ 允许|
+|同站AJAX|	✅ 允许|	❌ 阻止|	✅ 允许|
+|跨站导航|	⚠️ 有限|	❌ 阻止|	✅ 允许|
+|跨站AJAX|	❌ 阻止|	❌ 阻止|	✅ 允许|
+
+看到这里决定把站内 cookie 换用 Lax 模式;
+
+为了解决前后端跨站的问题, 用 mkcert:
+
+```bash
+mkcert *.cybercafe.test
+```
+
+> 注意, 用通配符;
+
+然后往 hosts 里改:
+
+```hosts
+127.0.0.1 前端域名
+127.0.0.1 后端域名
+```
+
+即可; 这样即使是不同端口, 也不视为跨站; 刚刚的 set-cookie 也可以正确放行;
+
+### 头像管理
+
+头像和之前的数据最大的不同在于, 用户的头像是一个**二进制文件** (图片); 显然不适合直接把整个二进制文件存进数据库; 考虑这个方案:
+
+```
+写 (upload/change) => 后端
+读 (view/fetch) => 不走后端
+```
+
+假设头像没有隐私设置 (即不存在 *"用户读其他人头像非法"* 的情况)
+
+#### 读入口
+
+```
+Frontend  ──GET──▶ CDN / Static / OSS
+```
+
+返回示例:
+
+```json
+{
+  "avatar_url": "https://cdn.xxx/avatars/123/1707050123.webp"
+}
+```
+
+#### 写入口
+
+```
+Browser ──POST => Backend
+Backend: /api/avatar/update
+  - 校验 JWT
+  - 校验 mime / size
+  - decode → re-encode
+  - 生成 version(timestampz)
+  - PUT 到 storage
+  - 返回 avatar_url
+```
+
+这个过程数据库几乎完全不参与;
+为了查看历史头像/撤回, 数据库只需要维护一个字段: (users 表) avatar_version
+
+示例的路径:  `./avatar/md5{uid}/{version}.png`
+
 ## 测试数据:
 
 ```json
@@ -718,5 +824,493 @@ src/
 
 > 例如, 一个记录点击次数的功能, 假设按一个按钮就会使得计数 +1 , 此处如果不用 useState, 那么即使计数值发生了改变, 由于前端没有重新渲染, 用户将看不见值改变;
 
-###
+#### hook 闭包
 
+很多时候你会觉得 `setState` 直接用当前变量就够了，比如 `setCount(count + 1)`，在点按钮、同步执行的那一瞬间，它看起来完全没问题。但这个写法其实是偷偷依赖了一个前提：这个函数执行时，闭包里的 `count` 一定是“最新的”。一旦这个前提被打破——比如一次事件里多次 set、进了 `setTimeout`、`useEffect`、订阅回调，或者在 React 18 的并发和批处理下——你用的就不再是“真实状态”，而只是“当年 render 时记住的那个值”。这就是所谓的闭包陈旧问题。
+
+函数式更新 `setCount(prev => prev + 1)` 的意义就在这：它不是从闭包里拿 state，而是把“怎么算下一个状态”这个规则交给 React，由 React 在真正更新时，把当下最新的 state传给你。你不再假设执行时机、不再关心中间发生了什么，只声明一件事：新状态如何由旧状态推导出来。也正因为这样，函数式更新才能安全地组合、重放、批量执行，才能在 effect、异步回调、并发渲染里保持正确。
+
+所以本质区别不在“写法”，而在信任谁：直接写 `count + 1` 是在信任当前闭包；写 `prev => prev + 1` 是在信任 React 的状态调度。当你的更新逻辑依赖旧状态时，闭包永远是不稳定因素，而函数式更新就是把这个不稳定因素彻底移走。
+
+所以就结论来说, 永远用闭包表达是更加安全的, 对未来调试有好处;
+
+### 优惠券 + 点单系统
+
+#### 流程设计 (初版)
+
+> 2026/01/26
+
+##### 商品展示阶段
+
+1. 前端请求商品数据
+2. 后端返回商品基础信息 + 可选项规则
+
+返回信息包括基础信息: 价格/名称/是否可售, 选项分量 / 甜度 / 温度 / 小料;
+
+前端仅用于展示和交互，不参与定价逻辑。
+
+##### 用户选购阶段
+
+用户填写购物车; 可以自选优惠券; 这些流程全部发生在前端;
+
+##### 提交订单预览
+
+前端提交购物车并生成预览, 确认后发送到后端;
+
+##### 后端下单校验与计价 (核心)
+
+后端在此阶段承担 唯一裁判角色，所有合法性与金额以此为准。后端处理顺序:
+
+1. 读入 JSONB 快照
+  
+   - 解析前端提交的订单项
+   - 校验 JSON 结构完整性与字段合法性
+
+2. 参数合法性校验
+
+   - 数量是否 > 0
+   - 选项字段是否缺失
+   - 单选 / 多选规则是否符合定义
+
+3. 商品合法性校验
+
+   - 商品是否存在
+   - 是否上架 / 可售
+   - 选项是否属于该商品
+   - 选项值是否合法
+   - 附加价格是否匹配当前商品规则
+  
+    校验方式: 使用 **商品基础表 + 商品选项表** 进行联合校验, 不信任任何前端提交的价格字段
+  
+  4. 优惠券合法性校验
+   
+  - 用户是否持有该优惠券
+  - 是否在有效期内
+  - 是否满足优惠券规则 (基于订单 JSONB)
+    - 商品范围限制
+    - 最低消费
+    - 首单 / 周期规则等
+    
+    注意这里需要用结构化 JSON, 避免 eval 类执行;
+
+  5. 计价流程
+  
+     统计基础商品价格 + 所有选项附加价格 + 数量累计 + 优惠券折扣计算得到应付金额
+
+  6. 金额一致性校验
+  
+  若前端提交了展示金额; 一致则通过, 否则修改订单金额并返回前端
+
+  7. 进入支付准备状态
+  
+  生成序列号, 订单变为待支付状态
+
+##### 支付阶段 (简述)
+
+- 在用户确认支付后：
+
+  后端再次校验订单（防重放）
+  校验用户余额 / 发起第三方支付
+
+- 扣款成功后：
+
+  生成正式订单
+  生成当日取餐号
+  订单状态进入 PAID
+
+#### 相关数据表
+
+> 示意
+
+商品基础表;
+
+```
+products
+- id
+- name
+- base_price
+- is_active
+```
+
+商品选项定义表;
+
+```
+product_options
+- id
+- product_id
+- option_code   (size / sugar / topping / temp)
+- option_type   (single / multi)
+- required
+
+```
+
+商品选项值表:
+
+```
+product_option_values
+- id
+- option_id
+- value
+- extra_price
+```
+
+> 2026/01/26
+
+为什么这里要做三张表, 而不是两张? 因为对每个扩展选项的键 / 值做清晰的规范处理, 有利于扩展; 设想: 如果用两张表, 那么需要用 JSONB 的方式来存具体选项, 这样不能直接排序或者简单增减规则;
+
+订单主表
+
+```
+orders
+- id
+- user_id
+- order_no
+- pickup_no
+- business_date
+- status
+- total_amount
+- discount_amount
+- pay_amount
+- created_at
+- paid_at
+```
+
+订单项表（关键）
+
+```
+order_items
+- id
+- order_id
+- product_id
+- product_name   (冗余快照)
+- quantity
+- unit_price
+- options        (JSONB)
+- remark
+- item_total
+
+```
+
+> 这个订单项表只是一个快照;
+
+优惠券定义表
+
+```
+coupons
+- id
+- name
+- discount_type
+- discount_value
+- rules (JSONB)
+- valid_from
+- valid_to
+```
+
+用户优惠券表
+
+```
+user_coupons
+- id
+- user_id
+- coupon_id
+- status
+- used_order_id
+```
+
+rules JSONB 示例:
+
+```json
+{
+  "conditions": [
+    { "type": "min_total_price", "value": 2000 },
+    { "type": "include_products", "product_ids": ["p1", "p2"] },
+    { "type": "first_order" }
+  ]
+}
+```
+
+#### 初版总结
+
+商品规则结构化，订单结果快照化
+
+前端负责交互，后端负责裁判
+
+价格只在后端计算
+
+JSONB 用于“结果记录”，不是“规则定义”
+
+所有钱相关逻辑必须可复算、可审计
+
+优惠券规则集中管理，避免表结构爆炸
+
+#### 修正版
+
+> 2026/01/30
+
+旧流程的问题:
+
+preview 就落库(用户刷新 / 重复点 / 网络抖动)
+
+DB 中产生：
+
+- 脏订单
+- 重复订单
+- 需要 cron / 清理脚本
+
+新流程的改进
+
+preview 完全无 DB 副作用
+
+只是：校验计算, 生成 token
+
+##### 新版流程
+
+> 2026/01/31
+
+把 preview 拆开成两步: submit + confirm;
+
+submit 流程不落库, 只有 confirm 落库;
+
+安全性由 token 保证: 
+
+1. 用户传一个快照到服务器. 服务器校验商品合法后计算价格 + Token 到浏览器;
+2. 浏览器渲染合法的认证后订单给用户, 用户确认后再经过 confirm 服务;
+3. confirm 服务会校验 Token, 确认后落库;
+
+整个过程 Token 无状态, 完全无 DB 负担;
+
+```go
+
+// SubmitService
+// 订单预览 + 校验 + 生成权威价格 + 下单 token
+func (s *OrderService) SubmitService(
+	ctx context.Context,
+	uid string,
+	req *OrderRequest,
+) (*SubmitResponse, error) {
+
+	if req == nil {
+		return nil, ErrInvalidRequest
+	}
+
+	// 1. 校验请求 + 构建权威 OrderContext
+	//    这里完成：
+	//    - 商品是否合法
+	//    - option/value 是否合法
+	//    - required option 是否满足
+	//    - quantity 是否有效
+	//    - OrderContext 冻结为可信计算态
+	orderCtx, err := s.repo.CheckOrder(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. 纯计算价格, 无 DB
+	priceResult, err := s.priceCalculator.Calculate(ctx, orderCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. 生成订单提交 token（暂留）
+	//    token 应基于 OrderContext + PriceResult
+	//    而不是原始 req（防止前端篡改）
+	orderToken := generateOrderToken(ctx, uid, orderCtx, priceResult)
+
+	// 4. 返回结果（预览态）
+	return &SubmitResponse{
+		Result: priceResult,
+		Token:  orderToken,
+	}, nil
+}
+```
+
+### 计价器纯化带来的直接收益
+
+##### ✅ 性能
+- 不再触发 IO
+- O(N) 顺序遍历
+- CPU cache 友好
+- 可被频繁调用（preview / retry / verify）
+
+##### ✅ 可测试性
+- 单测不需要 mock DB
+- 构造 OrderContext 即可
+- 可做属性测试（property-based testing）
+
+#### ✅ 可复用性
+- preview 使用
+- submit 前复算
+- token 校验时复算
+- 风控 / 对账 / 审计
+
+#### ✅ 语义清晰
+> **计价器 = 数学函数，不是服务**
+
+---
+
+#### 为什么计价器必须依赖 OrderContext，而不是 OrderRequest
+
+| 输入         | 是否可信     | 问题           |
+| ------------ | ------------ | -------------- |
+| OrderRequest | ❌ 用户输入   | 可被篡改、重放 |
+| OrderContext | ✅ 系统校验后 | 唯一权威       |
+
+结论：
+> **只要计价器接受 OrderRequest，就永远存在“绕过校验”的可能性**
+
+好处：
+- auth 不被业务污染
+- orders 可以独立演进
+- token 规则可随业务变化
+
+---
+
+##### orderToken 的本质：业务级签名
+
+> **orderToken 不是凭证，而是“共识证明”**
+
+它通常绑定：
+- uid
+- OrderContext hash
+- PriceResult hash
+- timestamp / ttl
+
+作用：
+- 防篡改
+- 防重放
+- 防跨用户提交
+
+---
+
+#### 分离带来的系统级优势
+
+##### ✅ 安全性
+- 即使 auth token 泄漏
+- 没有 orderToken 也无法下单
+
+##### ✅ 防抖 / 防重
+- preview 无状态
+- submit 必须携带 token
+- token 可设计为一次性或短期有效
+
+##### ✅ 并发友好
+- preview 可无限并发
+- submit 严格收敛
+
+---
+
+### 完整 订单链路
+
+```
+Submit (preview)
+↓
+CheckOrder → OrderContext
+↓
+PriceCalculator → PriceResult
+↓
+generateOrderToken → Token
+↓
+返回前端
+```
+
+```
+CreateOrder (submit)
+↓
+VerifyOrderToken
+↓
+（可选）重新 Calculate
+↓
+唯一一次落库
+```
+
+> 2026/02/01
+
+(在 AI 的协作下) 整理了一份前端的文档: [购物车逻辑](./frontend/src/docs/order-implementation.md)
+
+
+### 提前聚合的数据结构
+
+> 2026/02/02
+
+#### ❌ 传统写法 - N+1查询
+```go
+for _, item := range orderItems {
+    product, _ := db.GetProduct(item.ProductID)        // 1次查询
+    for _, opt := range item.Options {
+        option, _ := db.GetOption(opt.OptionCode)       // N次查询  
+        for _, val := range opt.Values {
+            optionValue, _ := db.GetOptionValue(val)    // M次查询
+        }
+    }
+}
+// 总复杂度：1 + N + M -> 退化!
+// 关键: 每一层的查询中, sql 查询次数是不可预测的
+```
+
+这种写法在订单场景下会导致：
+- 商品查询次数 = 订单商品数量
+- 选项查询次数 = 所有商品的选项总数  
+- 选项值查询次数 = 所有选项的值总数
+- 总查询次数 = 商品数 * 选项数 * 选项值数
+
+>  解决方案：中间数据结构 + 批量预加载
+
+#### ✅ 优化写法 - 批量加载
+
+```go
+// 第一步：收集所有需要的ID
+productIDs := collectProductIDs(orderItems)          // O(P)
+
+// 第二步：批量加载（3 次查询搞定, 对应 3 张表）
+products := batchLoadProducts(productIDs)             // 1次查询
+options := batchLoadOptions(productIDs)               // 1次查询  
+values := batchLoadValues(optionIDs)                 // 1次查询
+
+// 第三步：构建内存索引 (Go Map 结构自带)
+productMap := buildProductMap(products)              // O(P)
+optionMap := buildOptionMap(options)                  // O(O)
+valueMap := buildValueMap(values)                    // O(V)
+
+// 第四步：全部内存操作，无数据库查询
+for _, item := range orderItems {
+    product := productMap[item.ProductID]             // O(1)
+    for _, opt := range item.Options {
+        option := optionMap[opt.OptionCode]           // O(1)
+        for _, val := range opt.Values {
+            optionValue := valueMap[val]              // O(1)
+        }
+    }
+}
+```
+
+#### 总结
+
+> 用一次 `Join + Group` 的效果，替代多次 点查; 或者说把聚合提前到应用层而非数据库;
+
+这种操作的本质是利用编程语言的内存管理, 通过提前聚合来避免大量的含 where sql 语句批量执行; 并且*内存管理*听起来有点吓人, 但是编程语言基本上都自然支持, 结构体会自动入堆, 实际上这段代码就是在内存里放了一堆数据, 在其生命周期结束之前, 分配到需要的地方就行了;
+
+进一步的讲, 这种提前聚合的操作应该可以普遍适用于有以下场景:
+
+1. 多层关联表 (即 1 层以上的 **1 对多结构**);
+2. 读多写少的场景 (第 1 条通常就满足这个特征)
+
+### 支付流程设计
+
+支付接口设计为 `POST` `/api/orders/pay`。
+接口参数只需要订单 ID，从请求体读取；用户身份不从前端传，由服务端通过 JWT 鉴权直接得到用户 ID。金额等关键字段一律不信任前端，只从订单表读取。
+
+后端的核心目标只有一件事：
+在并发场景下，确保“这个用户的这个订单，只能被成功支付一次，且账户余额不会被扣错”。
+
+为此，**支付不是“校验 + 扣款 + 改状态”三件事，而是一个跨表的状态迁移过程，必须由数据库保证原子性**。
+
+需要开启一个事务 (涉及金额均需要开启事务), 事务两个步骤:
+
+- 1: 查询订单归属;
+- 2: 查余额 + 扣款, 聚合到一个语句中执行 (并发安全);
+
+### Token 校验随机失败问题修复
+
+> 2026/02/03
+
+调试了很久, 调试日志和总结都放进了 [这里](debug-info.md)

@@ -3,13 +3,10 @@ package users
 import (
 	"context"
 	"crypto/rand"
-	"errors"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"math/big"
 )
-
-var ErrUserNotFound = errors.New("user not found")
 
 type UserService struct {
 	repo UserRepo
@@ -21,7 +18,7 @@ func NewService(repo UserRepo) *UserService {
 	}
 }
 
-func (s UserService) UserRegister(c context.Context, req RegisterInfo) (*RegisterResult, error) {
+func (s UserService) UserRegister(req RegisterInfo) (*RegisterResult, error) {
 
 	hash, err := bcrypt.GenerateFromPassword(
 		[]byte(req.Password),
@@ -40,7 +37,7 @@ func (s UserService) UserRegister(c context.Context, req RegisterInfo) (*Registe
 		PasswordHash: string(hash),
 	}
 
-	result, err := s.repo.Register(c, &info)
+	result, err := s.repo.Register(&info)
 	if err != nil {
 		return nil, err
 	}
@@ -73,10 +70,43 @@ func (s UserService) AccountSummary(c context.Context, uid string) (*UserAccount
 	return result, nil
 }
 
-func (s UserService) UserBookshelf(uid string) ([]BookshelfItemDTO, error) {
-	return s.repo.GetBookshelf(uid)
+func (s *UserService) GetBookshelfService(uid string, page int) ([]BookshelfBookDTO, int, error) {
+
+	if page <= 0 {
+		page = 1
+	}
+
+	const pageSize = 6
+
+	items, total, err := s.repo.GetBookshelf(uid, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
+
 }
 
 func (s UserService) AddBook(uid string, bookID string) error {
-	return s.repo.AddBook(uid, bookID)
+	err := s.repo.AddBook(uid, bookID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s UserService) RemoveBook(uid string, bookID string) error {
+	err := s.repo.RemoveBook(uid, bookID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s UserService) IsInBookshelf(uid string, id string) (bool, error) {
+	isIn, err := s.repo.InBookshelf(uid, id)
+	if err != nil {
+		return false, err
+	}
+	return isIn, nil
 }

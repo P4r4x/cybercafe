@@ -2,9 +2,11 @@ package users
 
 import (
 	auth2 "CyberCafe/backend/internal/auth"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"regexp"
+	"strconv"
 )
 
 type UserHandler struct {
@@ -91,7 +93,7 @@ func (h *UserHandler) RegisterHandler(c *gin.Context) {
 		}
 	}
 
-	user, err := h.svc.UserRegister(c.Request.Context(), req)
+	user, err := h.svc.UserRegister(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -128,26 +130,36 @@ func (h *UserHandler) MeSummaryHandler(c *gin.Context) {
 
 func (h *UserHandler) GetBookshelfHandler(c *gin.Context) {
 
-	// 从 JWT 中获取用户 ID
-	claimsAny, ok := c.Get("claims")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	claims, ok := claimsAny.(*auth2.Claims)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
-		return
+	const pageSize = 6
+
+	// 0. 从 JWT 中获取用户 ID
+	claims := c.MustGet("claims").(*auth2.Claims)
+	uid := claims.UID
+
+	// ---------- page ----------
+	pageStr := c.DefaultQuery("page", "1")
+	page, err := strconv.Atoi(pageStr)
+
+	// 容错
+	if err != nil || page <= 0 {
+		page = 1
 	}
 
-	items, err := h.svc.UserBookshelf(claims.UID)
+	items, total, err := h.svc.GetBookshelfService(uid, page)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query summary"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, items)
-
+	// ---------- response ----------
+	c.JSON(http.StatusOK, gin.H{
+		"list":      items,
+		"page":      page,
+		"page_size": pageSize,
+		"total":     total,
+	})
 }
 
 func (h *UserHandler) AddBookHandler(c *gin.Context) {
@@ -180,5 +192,71 @@ func (h *UserHandler) AddBookHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "success",
+	})
+}
+
+func (h *UserHandler) RemoveBookHandler(c *gin.Context) {
+
+	// 从 JWT 中获取用户 ID
+	claimsAny, ok := c.Get("claims")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims, ok := claimsAny.(*auth2.Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	// 从 GET 里获取 book_id
+	// 从 URL 路径中获取 book_id 参数
+	bookID := c.Param("id")
+	if bookID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "book id is required"})
+		return
+	}
+
+	err := h.svc.RemoveBook(claims.UID, bookID)
+
+	switch {
+	case err == nil:
+		c.JSON(200, gin.H{"message": "success"})
+	case errors.Is(err, ErrAlreadyInShelf):
+		c.JSON(409, gin.H{"error": "already in bookshelf"})
+	default:
+		c.JSON(500, gin.H{"error": "internal error"})
+	}
+}
+
+func (h *UserHandler) InBookshelfHandler(c *gin.Context) {
+
+	// 从 JWT 中获取用户 ID
+	claimsAny, ok := c.Get("claims")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims, ok := claimsAny.(*auth2.Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	// 从 GET 里获取 book_id
+	// 从 URL 路径中获取 book_id 参数
+	bookID := c.Param("id")
+	if bookID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "book id is required"})
+		return
+	}
+
+	isInBookshelf, err := h.svc.IsInBookshelf(claims.UID, bookID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"result": isInBookshelf,
 	})
 }

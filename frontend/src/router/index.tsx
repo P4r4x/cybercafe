@@ -6,6 +6,8 @@ import SearchBook from "@/pages/SearchBook"
 import BookDetail from "@/pages/BookDetail"
 import Bookshelf from "@/pages/Bookshelf"
 import ShopMenu from "@/pages/ShopMenu"
+import OrderPreview from "@/pages/OrderPreview"
+import OrderPayment from "@/pages/OrderPayment"
 
 export const router = createBrowserRouter([
   {
@@ -46,5 +48,21 @@ export const router = createBrowserRouter([
       <MainLayout>
         <ShopMenu />
       </MainLayout>,
+  },
+  {
+    path: "/preview",
+    element: (
+      <MainLayout>
+        <OrderPreview />
+      </MainLayout>
+    ),
+  },
+  {
+    path: "/payment",
+    element: (
+      <MainLayout>
+        <OrderPayment />
+      </MainLayout>
+    ),
   }
 ])

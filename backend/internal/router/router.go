@@ -5,6 +5,8 @@ import (
 	books2 "CyberCafe/backend/internal/books"
 	dashboard2 "CyberCafe/backend/internal/dashboard"
 	"CyberCafe/backend/internal/infra/db"
+	"CyberCafe/backend/internal/orders"
+	"CyberCafe/backend/internal/products"
 	users2 "CyberCafe/backend/internal/users"
 	"net/http"
 	"time"
@@ -23,8 +25,8 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 		//},
 		AllowOrigins: []string{
 			// 只允许前端访问
-			"https://frontend.test:9017",
-			"https://frontend.test:9016",
+			"https://app.cybercafe.test:9017",
+			"https://app.cybercafe.test:9016",
 			// 允许 Burp Suite 调试
 			"http://localhost:8080",
 			"http://burp",
@@ -59,12 +61,23 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	dashboardSvc := dashboard2.NewService(dashboardRepo)
 	dashboardHandler := dashboard2.NewHandler(dashboardSvc)
 
+	// ===== 注入 product 相关依赖 =====
+	productRepo := products.NewPostgresRepo(pg.DB())
+	productSvc := products.NewService(productRepo)
+	productHandler := products.NewHandler(productSvc)
+
+	// ===== 注入 orders 相关依赖 =====
+	orderRepo := orders.NewPostgresRepo(pg.DB())
+	priceCalculator := orders.NewDefaultPriceCalculator("CNY")
+	orderSvc := orders.NewService(orderRepo, priceCalculator)
+	orderHandler := orders.NewHandler(orderSvc)
+
 	// ===== 跨域 =====
 	// 仅调试使用
 
-	r.OPTIONS("/*path", func(c *gin.Context) {
-		c.Status(204)
-	})
+	//r.OPTIONS("/*path", func(c *gin.Context) {
+	//	c.Status(204)
+	//})
 
 	// ===== 测试路由 =====
 	r.GET("/hi", func(c *gin.Context) {
@@ -85,9 +98,56 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 		})
 
 		api.GET("/logout", func(c *gin.Context) {
-			// TODO 登出
+			authHandler.LogoutHandler(c)
 		})
 
+		// ===== 头像路由组 =====
+
+		avatarGroup := api.Group("/avatars")
+		avatarGroup.Use(auth2.AuthRequired())
+		{
+			avatarGroup.GET("/:id", func(c *gin.Context) {
+				// TODO authHandler.GetAvatarHandler(c)
+			})
+		}
+		// ===== 商品路由组 =====
+
+		productGroup := api.Group("/products")
+		productGroup.Use(auth2.AuthRequired())
+		{
+			// 获取所有商品
+			productGroup.GET("/all", func(c *gin.Context) {
+				productHandler.ProductListHandler(c)
+			})
+		}
+
+		// ===== 订单路由组 =====
+		orderGroup := api.Group("/orders")
+		orderGroup.Use(auth2.AuthRequired())
+		{
+			// 提交订单
+			orderGroup.POST("/submit", func(c *gin.Context) {
+				orderHandler.SubmitHandler(c)
+			})
+			// 确认订单
+			orderGroup.POST("/confirm", func(c *gin.Context) {
+				orderHandler.ConfirmHandler(c)
+			})
+			// 支付订单
+			orderGroup.POST("/pay", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "TODO 支付订单"})
+			})
+			// 查询订单
+			orderGroup.GET("/:id", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "TODO 查询订单"})
+			})
+			// 取消订单
+			orderGroup.POST("/cancel", func(c *gin.Context) {
+				orderHandler.CancelHandler(c)
+			})
+		}
+
+		// ===== 图书路由组 =====
 		booksGroup := api.Group("/books")
 		{
 			booksGroup.POST("/query", bookHandler.BookQueryHandler)
@@ -121,7 +181,13 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 				authBooks.POST("/search", bookHandler.BookSearchHandler)
 
 				// 向书架添加图书
-				authBooks.GET("/add/:id", userHandler.AddBookHandler)
+				authBooks.GET("/bookshelf/add/:id", userHandler.AddBookHandler)
+
+				// 移除书架中的图书
+				authBooks.GET("/bookshelf/remove/:id", userHandler.RemoveBookHandler)
+
+				// 查询书籍是否在用户的书架中
+				authBooks.GET("/bookshelf/contains/:id", userHandler.InBookshelfHandler)
 
 				// 需要管理员权限组
 				adminBooks := booksGroup.Group("/")
@@ -137,6 +203,8 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 
 		}
 		{
+			// 用户相关路由组
+
 			authPages := api.Group("/me")
 			authPages.Use(auth2.AuthRequired())
 			{
@@ -151,6 +219,10 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 				})
 				authPages.GET("/recent_book_records", func(c *gin.Context) {
 					dashboardHandler.RecentRecordsHandler(c)
+				})
+				// 获取所有券包
+				authPages.GET("/coupons", func(c *gin.Context) {
+					c.JSON(http.StatusOK, gin.H{"message": "TODO 获取所有券包"})
 				})
 			}
 		}

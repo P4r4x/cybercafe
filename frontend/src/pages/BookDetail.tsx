@@ -10,23 +10,8 @@ import { getBookCoverUrl, handleImgError } from "@/utils/assets"
 import { useToast } from "@/components/Toast"
 import { useConfirm } from "@/components/ConfirmDialog"
 import { LoadingToast } from "@/components/LoadingToast"
-import { apiFetchJSON } from "@/utils/api"
-
-// ---------------- types ----------------
-interface Book {
-  uuid: string
-  id: number
-  total: number
-  remain: number
-  title: string
-  author: string
-  publisher: string
-  price: string
-  has_ebook: boolean
-  extra: Record<string, any>
-  created_at: string
-  updated_at: string
-}
+import { useBook } from "@/hooks"
+import type { Book } from "@/types"
 
 // ---------------- page ----------------
 export default function BookDetail() {
@@ -36,99 +21,16 @@ export default function BookDetail() {
   const toast = useToast()
   const confirm = useConfirm()
 
-  const [book, setBook] = useState<Book | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [borrowing, setBorrowing] = useState(false)
-  const [inShelf, setInShelf] = useState(false)
-  const [shelfLoading, setShelfLoading] = useState(true)
-
-  // ---------- fetch book ----------
-  useEffect(() => {
-    if (!id) return
-    setLoading(true)
-
-apiFetchJSON<Book[]>(`/books/${id}`)
-      .then((data) => setBook(data[0] ?? null))
-      .catch(err => {
-        // 401 自动跳转，其他错误显示
-        if (!err.message.includes('Unauthorized: redirecting to login')) {
-          toast.show("error", err.message || "获取书籍信息失败")
-        }
-      })
-      .finally(() => setLoading(false))
-  }, [id])
-
-  // ---------- fetch bookshelf status ----------
-  useEffect(() => {
-    if (!id) return
-    setShelfLoading(true)
-
-apiFetchJSON<{result: boolean}>(`/books/bookshelf/contains/${id}`)
-      .then(data => {
-        setInShelf(Boolean(data?.result))
-      })
-      .catch(() => {
-        setInShelf(false)
-      })
-      .finally(() => setShelfLoading(false))
-  }, [id])
-
-  // ---------- add/remove ----------
-  async function handleShelfToggle() {
-    if (!book) return
-
-    if (inShelf) {
-      // 确认移除
-      const ok = await confirm({
-        title: "移除书架",
-        message: `确定要从书架中移除《${book.title}》吗？`,
-        confirmText: "移除",
-      })
-      if (!ok) return
-
-try {
-        await apiFetchJSON(`/books/bookshelf/remove/${book.id}`)
-        toast.show("success", "已从书架移除")
-        setInShelf(false)
-      } catch (err: any) {
-        toast.show("error", err.message || "移除失败")
-      }
-    } else {
-// 直接加入书架
-      try {
-        await apiFetchJSON(`/books/bookshelf/add/${book.id}`)
-        toast.show("success", "已加入书架")
-        setInShelf(true)
-      } catch (err: any) {
-        toast.show("error", err.message || "加入书架失败")
-      }
-    }
-  }
-
-  // ---------- borrow ----------
-  async function handleBorrow() {
-    if (!book) return
-    const ok = await confirm({
-      title: "确认借阅",
-      message: `确定要借阅《${book.title}》吗？`,
-      confirmText: "确认借阅",
-    })
-    if (!ok) return
-    if (!book || borrowing) return
-
-    setBorrowing(true)
-try {
-      await apiFetchJSON("/books/borrow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: book.id, amount: 1 }),
-      })
-      toast.show("success", "借阅成功")
-      setBook(prev => (prev ? { ...prev, remain: prev.remain - 1 } : prev))
-    } catch (err: any) {
-      toast.show("error", err.message || "借阅失败")
-    }
-  }
+  // 使用新的 hook 管理所有图书相关状态和操作
+  const {
+    book,
+    loading,
+    borrowing,
+    inShelf,
+    shelfLoading,
+    handleShelfToggle,
+    handleBorrow,
+  } = useBook(id)
 
   // ---------- back ----------
   function handleBack() {
@@ -141,8 +43,8 @@ try {
   }
 
   if (loading) {
-  return <LoadingToast message="" variant="sakura" />
-}
+    return <LoadingToast message="" variant="sakura" />
+  }
   if (!book) return <div className="p-8 text-gray-500">未找到书籍</div>
 
   const { intro, genre, field, award, words, summary } = book.extra || {}

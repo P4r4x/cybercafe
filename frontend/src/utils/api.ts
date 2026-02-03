@@ -99,7 +99,7 @@ export async function apiFetch(
 
   if (res.status === 401) {
     if (window.location.pathname !== '/login') {
-      window.location.href = '/login'
+      window.location.href = '/'
     }
     throw new Error('Unauthorized: redirecting to login')
   }

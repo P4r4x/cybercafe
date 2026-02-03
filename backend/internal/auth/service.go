@@ -38,7 +38,7 @@ func (s CredentialService) LoginService(c context.Context, req LoginInfo) (*Logi
 	// 3. 校验密码 和 用户状态
 	if err := bcrypt.CompareHashAndPassword(
 		[]byte(user.PasswordHash),
-		[]byte(*req.Password),
+		[]byte(req.Password),
 	); err != nil {
 		// 密码错误
 		return nil, ErrLoginFailed

@@ -12,7 +12,7 @@ func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := extractJWT(c)
 		if tokenStr == "" {
-			c.Redirect(http.StatusFound, "/api/login")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			c.Abort()
 			return
 		}
@@ -20,13 +20,13 @@ func AuthRequired() gin.HandlerFunc {
 		claims, err := ParseToken(tokenStr)
 
 		if err != nil {
-			c.Redirect(http.StatusFound, "/api/login")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			c.Abort()
 			return
 		}
 
 		if claims.Status != "active" {
-			c.Redirect(http.StatusFound, "/api/login")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "user inactive or deleted"})
 			c.Abort()
 			return
 		}

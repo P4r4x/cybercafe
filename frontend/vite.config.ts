@@ -17,15 +17,15 @@ export default defineConfig({
   },
   server: {
     https: {
-      key: fs.readFileSync("cert/frontend.test-key.pem"),
-      cert: fs.readFileSync("cert/frontend.test.pem"),
+      key: fs.readFileSync("cert/cybercafe.test+1-key.pem"),
+      cert: fs.readFileSync("cert/cybercafe.test+1.pem"),
     },
     host: '127.0.0.1',
     port: 9017,
     strictPort: true,
         hmr: {
       protocol: "wss",
-      host: "frontend.test",
+      host: "app.cybercafe.test",
       port: 9017,
     },
   }

@@ -34,8 +34,8 @@ func main() {
 
 	// HTTPS
 	if err := engine.RunTLS(":9016",
-		"backend/cert/backend.test.pem",
-		"backend/cert/backend.test-key.pem"); err != nil {
+		"backend/cert/cybercafe.test+1.pem",
+		"backend/cert/cybercafe.test+1-key.pem"); err != nil {
 		log.Fatal(err)
 	}
 }

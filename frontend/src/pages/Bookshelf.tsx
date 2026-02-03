@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { getBookCoverUrl, handleImgError } from "@/utils/assets"
 import { apiFetchJSON } from "@/utils/api"
+import CartWidget from "@/components/cart/CartWidget"
+
 const PAGE_SIZE = 6
 
 type Publisher = {
@@ -46,7 +48,7 @@ async function fetchList() {
       setTotal(data.total)
     } catch (err) {
       // 401 会自动跳转，其他错误静默处理
-      if (!err.message.includes('Unauthorized: redirecting to login')) {
+      if (err instanceof Error && !err.message.includes('Unauthorized: redirecting to login')) {
         console.warn("fetch bookshelf failed:", err)
       }
     }
@@ -199,6 +201,7 @@ async function fetchList() {
           <ChevronRight size={18} />
         </button>
       </div>
+      <CartWidget />
     </div>
   )
 }

@@ -1,0 +1,6 @@
+id,order_item_id,option_code,option_value,extra_price,created_at
+1,1,size,大杯,2.00,2026-01-02T09:02:00Z
+2,1,sugar,半糖,0.00,2026-01-02T09:02:30Z
+3,1,topping,珍珠,2.00,2026-01-02T09:03:00Z
+4,2,size,中杯,0.00,2026-01-02T10:02:00Z
+5,2,sugar,全糖,0.00,2026-01-02T10:02:30Z
