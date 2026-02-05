@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 create table public.books
 (
     uuid       uuid                                         not null

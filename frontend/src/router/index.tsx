@@ -1,68 +1,33 @@
-import { createBrowserRouter } from "react-router-dom"
-import Login from "@/features/auth/pages/Login"
-import Dashboard from "@/pages/Dashboard"
-import MainLayout from "@/layouts/MainLayout"
+import { createBrowserRouter, Navigate } from "react-router-dom"
+import Login from "@/pages/Login"
+import Home from "@/pages/Home"
 import SearchBook from "@/pages/SearchBook"
-import BookDetail from "@/pages/BookDetail"
-import Bookshelf from "@/pages/Bookshelf"
-import ShopMenu from "@/pages/ShopMenu"
-import OrderPreview from "@/pages/OrderPreview"
-import OrderPayment from "@/pages/OrderPayment"
+import ToastDemo from "@/pages/ToastDemo"
+import ImageUsageExamples from "@/components/ImageUsageExamples"
 
 export const router = createBrowserRouter([
   {
     path: "/",
+    element: <Navigate to="/login" replace />,
+  },
+  {
+    path: "/login",
     element: <Login />,
   },
   {
-    path: "/dashboard",
-    element:
-      <MainLayout>
-        <Dashboard />
-      </MainLayout>,
+    path: "/home",
+    element: <Home />,
   },
   {
-    path: "/search_book",
-    element:
-      <MainLayout>
-        <SearchBook />
-      </MainLayout>,
+    path: "/searchbook",
+    element: <SearchBook />,
   },
   {
-    path: "/search_books/:id",
-    element:
-      <MainLayout>
-        <BookDetail />
-      </MainLayout>,
+    path: "/toast-demo",
+    element: <ToastDemo />,
   },
   {
-    path: "/bookshelf",
-    element:
-      <MainLayout>
-        <Bookshelf />
-      </MainLayout>,
+    path: "/image-examples",
+    element: <ImageUsageExamples />,
   },
-  {
-    path: "/shop",
-    element:
-      <MainLayout>
-        <ShopMenu />
-      </MainLayout>,
-  },
-  {
-    path: "/preview",
-    element: (
-      <MainLayout>
-        <OrderPreview />
-      </MainLayout>
-    ),
-  },
-  {
-    path: "/payment",
-    element: (
-      <MainLayout>
-        <OrderPayment />
-      </MainLayout>
-    ),
-  }
 ])

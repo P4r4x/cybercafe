@@ -1,17 +1,14 @@
 import { RouterProvider } from "react-router-dom"
 import { router } from "@/router"
-import { ToastProvider } from "@/components/Toast"
-import { CartProvider } from "@/context/CartContext"
-import { OrderPaymentProvider } from "@/context/OrderPaymentContext"
+import { ThemeProvider } from "@/themes"
+import { ToastProvider } from "@/components/ui"
 
 export default function App() {
   return (
-    <ToastProvider>
-      <CartProvider>
-        <OrderPaymentProvider>
-          <RouterProvider router={router} />
-        </OrderPaymentProvider>
-      </CartProvider>
-    </ToastProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
+    </ThemeProvider>
   )
 }

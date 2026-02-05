@@ -5,10 +5,8 @@ import (
 )
 
 type UserRepo interface {
-	Register(d *RegisterInfoDetail) (RegisterResult, error)
-	AddBook(uid string, bookID string) error
-	RemoveBook(uid string, bookID string) error
-	InBookshelf(uid string, bookID string) (bool, error)
+	Register(c context.Context, d *RegisterInfoDetail) (RegisterResult, error)
 	GetAccount(c context.Context, uid string) (*UserAccount, error)
-	GetBookshelf(uid string, page int, pageSize int) ([]BookshelfBookDTO, int, error)
+	GetBookshelf(uid string) ([]BookshelfItemDTO, error)
+	AddBook(uid string, bookID string) error
 }

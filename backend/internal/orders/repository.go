@@ -8,12 +8,15 @@ type OrderRepo interface {
 	ValidateOrder(ctx context.Context, req *OrderRequest) error
 	BuildOrderContext(ctx context.Context, req *OrderRequest) (*OrderContext, error)
 	CancelOrder(ctx context.Context, uid string, orderID int64) error
+	GetBasicOrder(ctx context.Context, orderID int64) (*BasicOrderResponse, error)
 }
 
 type OrderTx interface {
 	CreateOrder(ctx context.Context, order *PersistOrder) (int64, error)
 	CreateOrderItems(ctx context.Context, items []*PersistOrderItem) ([]int64, error)
 	CreateOrderItemOptions(ctx context.Context, options []*PersistOrderItemOption) error
+
+	CommitOrderPayment(ctx context.Context, uid string, orderID int64) error
 
 	Commit() error
 	Rollback() error

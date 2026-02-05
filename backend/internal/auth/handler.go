@@ -29,7 +29,7 @@ func (h *CredentialHandler) LoginHandler(c *gin.Context) {
 	// 2. 基本结构校验：username / email 必须且只能存在一个，password 必须存在
 	hasUsername := req.Username != nil && *req.Username != ""
 	hasEmail := req.Email != nil && *req.Email != ""
-	hasPassword := req.Password != ""
+	hasPassword := req.Password != nil && *req.Password != ""
 
 	if hasPassword == false || hasUsername == hasEmail {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
@@ -72,7 +72,7 @@ func (h *CredentialHandler) LoginHandler(c *gin.Context) {
 	}
 
 	// 4. password 校验, 不做字符集白名单, 只排除控制字符
-	password := req.Password
+	password := *req.Password
 
 	if len(password) < 8 || len(password) > 128 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid password"})
@@ -110,25 +110,7 @@ func (h *CredentialHandler) LoginHandler(c *gin.Context) {
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-	})
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "success",
-	})
-}
-
-func (h *CredentialHandler) LogoutHandler(c *gin.Context) {
-
-	// 删除 cookie
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "cookie",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   -1,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	c.JSON(http.StatusOK, gin.H{

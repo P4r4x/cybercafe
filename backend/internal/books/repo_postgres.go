@@ -89,7 +89,7 @@ func (r *PostgresRepo) AddRemain(
 ) (err error) {
 
 	// 独立事务 context
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 9999*time.Second)
 	defer cancel()
 
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{

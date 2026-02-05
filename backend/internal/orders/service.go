@@ -149,3 +149,50 @@ func (s *OrderService) CancelService(ctx context.Context, uid string, req *Cance
 	}
 	return nil
 }
+
+// BalancePaymentService 尝试进行余额支付
+func (s *OrderService) BalancePaymentService(ctx context.Context, uid string, req *BalancePaymentRequest) error {
+
+	// 1. 开启事务
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err := tx.Rollback()
+			if err != nil {
+				return
+			}
+			panic(r)
+		}
+	}()
+
+	// 2. 校验订单归属, 状态 + 校验余额 + 尝试扣款
+	if err := tx.CommitOrderPayment(ctx, uid, req.OrderId); err != nil {
+		// 如果是订单过期错误，需要先提交事务以保存状态更新
+		if err.Error() == "order has expired" {
+			if commitErr := tx.Commit(); commitErr != nil {
+				return commitErr
+			}
+		} else {
+			// 其他错误回滚事务
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				return rollbackErr
+			}
+		}
+		return err
+	}
+
+	// 3. 提交事务
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetBasicOrderService 获取订单基础信息
+func (s *OrderService) GetBasicOrderService(ctx context.Context, orderID int64) (*BasicOrderResponse, error) {
+	return s.repo.GetBasicOrder(ctx, orderID)
+}

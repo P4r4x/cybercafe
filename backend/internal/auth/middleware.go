@@ -26,7 +26,7 @@ func AuthRequired() gin.HandlerFunc {
 		}
 
 		if claims.Status != "active" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "user inactive or deleted"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			c.Abort()
 			return
 		}

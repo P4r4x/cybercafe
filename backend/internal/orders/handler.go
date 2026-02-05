@@ -4,6 +4,7 @@ import (
 	auth2 "CyberCafe/backend/internal/auth"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 )
 
 type OrderHandler struct {
@@ -84,4 +85,24 @@ func (h OrderHandler) CancelHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, "success")
+}
+
+func (h OrderHandler) GetBasicOrderHandler(c *gin.Context) {
+
+	// 0. 从 JWT 中获取用户 ID
+	_ = c.MustGet("claims").(*auth2.Claims)
+
+	// 1. 获取订单 ID
+	orderIdStr := c.Param("order_id")
+	orderId, err := strconv.ParseInt(orderIdStr, 10, 64)
+	req := &BasicOrderRequest{
+		OrderId: orderId,
+	}
+
+	// 2. 获取订单基础信息
+	basicInfo, err := h.svc.GetBasicOrderService(c, req.OrderId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	c.JSON(http.StatusOK, basicInfo)
 }

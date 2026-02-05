@@ -139,3 +139,25 @@ type PersistOrderItemOption struct {
 type CancelRequest struct {
 	OrderId int64 `json:"order_id"`
 }
+
+// ===== Query 基本查找功能相关 =====
+
+type BasicOrderRequest struct {
+	OrderId int64 `json:"order_id"`
+}
+
+type BasicOrderResponse struct {
+	Id          int64  `json:"order_id" db:"id"`
+	UserId      string `json:"user_id" db:"user_id"`
+	TotalAmount string `json:"total_amount" db:"total_amount"`
+	Status      string `json:"status" db:"status"`
+	CreatedAt   string `json:"created_at" db:"created_at"`
+	UpdatedAt   string `json:"updated_at" db:"updated_at"`
+	ExpiredAt   string `json:"expired_at" db:"expired_at"`
+}
+
+// ===== 余额支付相关 =====
+
+type BalancePaymentRequest struct {
+	OrderId int64 `json:"order_id"`
+}

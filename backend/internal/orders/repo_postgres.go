@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/shopspring/decimal"
+	"time"
 )
 
 type PostgresRepo struct {
@@ -19,9 +21,10 @@ func NewPostgresRepo(db *sql.DB) OrderRepo {
 }
 
 var (
-	ErrInvalidQuantity     = errors.New("invalid quantity")
-	ErrProductNotFound     = errors.New("product not found or inactive")
-	ErrOptionNotFound      = errors.New("product option not found")
+	ErrOrderNotPayable     = errors.New("order not payable")
+	ErrOrderExpired        = errors.New("order has expired")
+	ErrUserNotExist        = errors.New("user not exist")
+	ErrInsufficientBalance = errors.New("insufficient balance")
 	ErrOptionValueNotFound = errors.New("option value not found")
 	ErrInvalidOptionValue  = errors.New("invalid option value count")
 )
@@ -140,7 +143,7 @@ func (r *PostgresRepo) CreateOrder(ctx context.Context, order *PersistOrder) (in
 		return 0, errors.New("nil order")
 	}
 
-	query := `
+	const query = `
 		INSERT INTO orders (user_id, total_amount, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
@@ -168,7 +171,7 @@ func (r *PostgresRepo) CreateOrderItems(ctx context.Context, items []*PersistOrd
 		return nil, nil
 	}
 
-	query := `
+	const query = `
 		INSERT INTO order_items (order_id, product_id, product_name, quantity, base_price, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
@@ -202,7 +205,7 @@ func (r *PostgresRepo) CreateOrderItemOptions(ctx context.Context, options []*Pe
 		return nil
 	}
 
-	query := `
+	const query = `
 		INSERT INTO order_item_options (order_item_id, option_code, option_value, extra_price, created_at)
 		VALUES ($1, $2, $3, $4, $5)
 	`
@@ -231,7 +234,7 @@ func (r *PostgresRepo) CreateOrderItemOptions(ctx context.Context, options []*Pe
 */
 
 func (r *PostgresRepo) CancelOrder(ctx context.Context, uid string, orderID int64) error {
-	query := `
+	const query = `
 		UPDATE orders
 		SET status = 'canceled'
 		WHERE id = $1 
@@ -241,6 +244,142 @@ func (r *PostgresRepo) CancelOrder(ctx context.Context, uid string, orderID int6
 
 	// 注意, 不需要事务的时候使用 r.db; 需要时使用 r.tx
 	_, err := r.db.ExecContext(ctx, query, orderID, uid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
+===========================================================
+获取订单基础信息方法实现
+===========================================================
+*/
+
+// GetBasicOrder 获取订单基础信息, 仅返回基础信息 (id, 价格, 状态)
+func (r *PostgresRepo) GetBasicOrder(ctx context.Context, orderID int64) (*BasicOrderResponse, error) {
+	const query = `
+		SELECT id, created_at, expired_at, status, total_amount, user_id
+		FROM orders
+		WHERE id = $1
+	`
+
+	res := &BasicOrderResponse{}
+
+	rows, err := r.db.QueryContext(ctx, query, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
+
+	// 扫描结果
+	for rows.Next() {
+		if err := rows.Scan(
+			&res.Id,
+			&res.CreatedAt,
+			&res.ExpiredAt,
+			&res.Status,
+			&res.TotalAmount,
+			&res.UserId,
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
+}
+
+/*
+===========================================================
+余额支付方法实现
+===========================================================
+*/
+
+// CommitOrderPayment 尝试进行余额扣款
+func (r *PostgresRepo) CommitOrderPayment(ctx context.Context, uid string, orderID int64) error {
+
+	var (
+		totalAmount decimal.Decimal
+		balance     decimal.Decimal
+		expiredAt   time.Time
+	)
+
+	// 1. 归属查询, 并上锁
+	const query1 = `
+    SELECT total_amount, expired_at
+        FROM orders
+        WHERE id = $1
+          AND user_id = $2
+          AND status = 'created'
+    `
+
+	// 2. 过期校验
+	const query2 = `
+	UPDATE orders
+	SET status = 'expired',
+		updated_at = now()
+	WHERE id = $1
+	`
+
+	// 如果订单过期, 更新状态并返回错误
+	if expiredAt.Before(time.Now()) {
+		_, err := r.tx.ExecContext(ctx, query2, orderID)
+		if err != nil {
+			return err
+		}
+		return ErrOrderExpired
+	}
+
+	// 3. 锁账户
+	const query3 = `
+	SELECT balance
+	FROM user_account
+	WHERE uid = $1
+	AND status = 'active'
+	FOR UPDATE;
+	`
+	err := r.tx.QueryRowContext(ctx, query3, uid).Scan(&balance)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrUserNotExist
+	}
+	if balance.LessThan(totalAmount) {
+		return ErrInsufficientBalance
+	}
+
+	// 4. 扣款
+	const query4 = `
+	UPDATE user_account
+	SET balance = balance - $1,
+		updated_at = now()
+	WHERE uid = $2
+	AND balance >= $1
+	`
+
+	res, err := r.tx.ExecContext(ctx, query4, totalAmount, uid)
+	if err != nil {
+		return err
+	}
+
+	// 兜底逻辑
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return ErrInsufficientBalance
+	}
+
+	// 5. 支付成功时更新订单状态
+	const query5 = `
+	UPDATE orders
+	SET status = 'paid',
+		updated_at = now()
+	WHERE id = $1
+	`
+	_, err = r.tx.ExecContext(ctx, query5, orderID)
+
 	if err != nil {
 		return err
 	}

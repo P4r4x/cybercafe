@@ -2,15 +2,8 @@ package users
 
 import (
 	"CyberCafe/backend/internal/infra/db"
-	"database/sql"
-	"errors"
 	"github.com/shopspring/decimal"
 	"time"
-)
-
-var (
-	ErrUserNotFound   = errors.New("user not found")
-	ErrAlreadyInShelf = errors.New("book already in shelf")
 )
 
 // User 用户基本数据
@@ -66,18 +59,4 @@ type RegisterInfoDetail struct {
 
 type RegisterResult struct {
 	UserID string `json:"user_id"`
-}
-
-type BookshelfBookDTO struct {
-	ID        string
-	UUID      string
-	Title     string
-	Author    string
-	Publisher sql.NullString
-	Price     string
-	Total     int
-	Remain    int
-	HasEbook  bool
-	Extra     []byte // jsonb 原样透传 or 再 decode
-	AddedAt   time.Time
 }

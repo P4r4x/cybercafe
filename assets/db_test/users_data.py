@@ -15,10 +15,10 @@ conn = psycopg.connect(
 insert_sql = """
              INSERT INTO users (
                  id, username, email, phone, password_hash,
-                 role, status, extra, last_login_at, created_at
+                 role, status, user_group, extra, last_login_at, created_at
              ) VALUES (
                           %(id)s, %(username)s, %(email)s, %(phone)s, %(password_hash)s,
-                          %(role)s, %(status)s, %(extra)s, %(last_login_at)s, %(created_at)s
+                          %(role)s, %(status)s, %(user_group)s, %(extra)s, %(last_login_at)s, %(created_at)s
                       ) \
              """
 
