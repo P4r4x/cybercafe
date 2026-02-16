@@ -9,6 +9,7 @@ type OrderRepo interface {
 	BuildOrderContext(ctx context.Context, req *OrderRequest) (*OrderContext, error)
 	CancelOrder(ctx context.Context, uid string, orderID int64) error
 	GetBasicOrder(ctx context.Context, orderID int64) (*BasicOrderResponse, error)
+	GetHistory(ctx context.Context, uid string, page int64, pageSize int64) (*HistoryResponse, error)
 }
 
 type OrderTx interface {

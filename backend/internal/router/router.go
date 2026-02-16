@@ -6,6 +6,7 @@ import (
 	dashboard2 "CyberCafe/backend/internal/dashboard"
 	"CyberCafe/backend/internal/infra/db"
 	order2 "CyberCafe/backend/internal/orders"
+	products2 "CyberCafe/backend/internal/products"
 	users2 "CyberCafe/backend/internal/users"
 	"net/http"
 	"time"
@@ -64,6 +65,11 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	orderSvc := order2.NewService(orderRepo, order2.NewDefaultPriceCalculator("CNY"))
 	orderHandler := order2.NewHandler(orderSvc)
 
+	// ===== 注入 products 相关依赖 =====
+	productRepo := products2.NewPostgresRepo(pg.DB())
+	productSvc := products2.NewService(productRepo)
+	productHandler := products2.NewHandler(productSvc)
+
 	// ===== 跨域 =====
 	// 仅调试使用
 
@@ -80,7 +86,6 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 	api := r.Group("/api")
 	{
 		// ===== 登录路由组 =====
-
 		api.POST("/login", func(c *gin.Context) {
 			authHandler.LoginHandler(c)
 		})
@@ -90,7 +95,7 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 		})
 
 		api.GET("/logout", func(c *gin.Context) {
-			// TODO 登出
+			authHandler.LogoutHandler(c)
 		})
 
 		booksGroup := api.Group("/books")
@@ -127,6 +132,12 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 
 				// 向书架添加图书
 				authBooks.GET("/add/:id", userHandler.AddBookHandler)
+
+				// 从书架删除图书
+				authBooks.GET("/remove/:id", userHandler.RemoveBookHandler)
+
+				// 查询书架中是否有指定图书
+				authBooks.GET("/has/:id", userHandler.HasBookHandler)
 
 				// 需要管理员权限组
 				adminBooks := booksGroup.Group("/")
@@ -180,7 +191,20 @@ func InitRoutes(engine *gin.Engine, pg *db.Postgres) {
 
 			// 获取订单详情 (基本信息)
 			orderGroup.GET("/:id", func(c *gin.Context) {
-				orderHandler.GetBasicOrderHandler(c)
+				orderHandler.GetBasicHandler(c)
+			})
+
+			// 余额支付
+			orderGroup.POST("/pay/balance", func(c *gin.Context) {
+				orderHandler.PayBalanceHandler(c)
+			})
+		}
+
+		// ===== 商品路由组 =====
+		productsGroup := api.Group("/products")
+		{
+			productsGroup.GET("/all", func(c *gin.Context) {
+				productHandler.GetAllHandler(c)
 			})
 		}
 	}

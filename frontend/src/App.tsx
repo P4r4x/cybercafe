@@ -1,6 +1,6 @@
 import { RouterProvider } from "react-router-dom"
 import { router } from "@/router"
-import { ThemeProvider } from "@/themes"
+import { ThemeProvider } from "@/hooks/themeContext"
 import { ToastProvider } from "@/components/ui"
 
 export default function App() {

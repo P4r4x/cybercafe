@@ -1,6 +1,9 @@
 package orders
 
-import "github.com/shopspring/decimal"
+import (
+	"github.com/shopspring/decimal"
+	"time"
+)
 
 // ===== submit 功能相关 =====
 
@@ -98,6 +101,7 @@ type OrderId int64
 
 type ConfirmResponse struct {
 	Id          OrderId      `json:"order_id"`
+	ExpiredAt   time.Time    `json:"expired_at"`
 	PriceResult *PriceResult `json:"result"`
 }
 
@@ -109,8 +113,9 @@ type PersistOrder struct {
 	UID         string          `db:"user_id"`
 	TotalAmount decimal.Decimal `db:"total_amount"`
 	Status      string          `db:"status"`
-	CreatedAt   string          `db:"created_at"`
-	UpdatedAt   string          `db:"updated_at"`
+	CreatedAt   time.Time       `db:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at"`
+	ExpiredAt   time.Time       `db:"expired_at"`
 }
 
 // PersistOrderItem 持久化订单的商品属性表
@@ -121,7 +126,7 @@ type PersistOrderItem struct {
 	ProductName string          `db:"product_name"`
 	Quantity    int32           `db:"quantity"`
 	BasePrice   decimal.Decimal `db:"base_price"`
-	CreatedAt   string          `db:"created_at"`
+	CreatedAt   time.Time       `db:"created_at"`
 }
 
 // PersistOrderItemOption 持久化订单的商品选项表
@@ -131,7 +136,7 @@ type PersistOrderItemOption struct {
 	OptionCode  string          `db:"option_code"`
 	OptionValue string          `db:"option_value"`
 	ExtraPrice  decimal.Decimal `db:"extra_price"`
-	CreatedAt   string          `db:"created_at"`
+	CreatedAt   time.Time       `db:"created_at"`
 }
 
 // ===== Cancel 功能相关 =====
@@ -147,17 +152,57 @@ type BasicOrderRequest struct {
 }
 
 type BasicOrderResponse struct {
-	Id          int64  `json:"order_id" db:"id"`
-	UserId      string `json:"user_id" db:"user_id"`
-	TotalAmount string `json:"total_amount" db:"total_amount"`
-	Status      string `json:"status" db:"status"`
-	CreatedAt   string `json:"created_at" db:"created_at"`
-	UpdatedAt   string `json:"updated_at" db:"updated_at"`
-	ExpiredAt   string `json:"expired_at" db:"expired_at"`
+	Id          int64     `json:"order_id" db:"id"`
+	UserId      string    `json:"user_id" db:"user_id"`
+	TotalAmount string    `json:"total_amount" db:"total_amount"`
+	Status      string    `json:"status" db:"status"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ExpiredAt   time.Time `json:"expired_at" db:"expired_at"`
 }
 
 // ===== 余额支付相关 =====
 
 type BalancePaymentRequest struct {
 	OrderId int64 `json:"order_id"`
+}
+
+// ===== 订单明细相关 =====
+
+// 1. 请求结构
+
+type OrderHistoryRequest struct {
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
+}
+
+// 2. 响应结构
+
+type HistoryResponse struct {
+	History []*OrderHistory `json:"history"`
+}
+
+type OrderHistory struct {
+	ID          int64               `json:"id"`
+	UserID      string              `json:"user_id"`
+	Status      string              `json:"status"`
+	TotalAmount decimal.Decimal     `json:"total_amount"`
+	CreatedAt   time.Time           `json:"created_at"`
+	Items       []*OrderHistoryItem `json:"items"`
+}
+
+type OrderHistoryItem struct {
+	ID          int64                    `json:"id"`
+	ProductID   int64                    `json:"product_id"`
+	ProductName string                   `json:"product_name"`
+	Quantity    int                      `json:"quantity"`
+	BasePrice   decimal.Decimal          `json:"base_price"`
+	Options     []OrderHistoryItemOption `json:"options"`
+}
+
+type OrderHistoryItemOption struct {
+	ID          int64           `json:"id"`
+	OptionCode  string          `json:"option_code"`
+	OptionValue string          `json:"option_value"`
+	ExtraPrice  decimal.Decimal `json:"extra_price"`
 }

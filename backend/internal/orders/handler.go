@@ -87,7 +87,7 @@ func (h OrderHandler) CancelHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, "success")
 }
 
-func (h OrderHandler) GetBasicOrderHandler(c *gin.Context) {
+func (h OrderHandler) GetBasicHandler(c *gin.Context) {
 
 	// 0. 从 JWT 中获取用户 ID
 	_ = c.MustGet("claims").(*auth2.Claims)
@@ -95,6 +95,10 @@ func (h OrderHandler) GetBasicOrderHandler(c *gin.Context) {
 	// 1. 获取订单 ID
 	orderIdStr := c.Param("order_id")
 	orderId, err := strconv.ParseInt(orderIdStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order id"})
+		return
+	}
 	req := &BasicOrderRequest{
 		OrderId: orderId,
 	}
@@ -105,4 +109,59 @@ func (h OrderHandler) GetBasicOrderHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 	c.JSON(http.StatusOK, basicInfo)
+}
+
+func (h OrderHandler) PayBalanceHandler(c *gin.Context) {
+
+	var req BalancePaymentRequest
+
+	// 0. 从 JWT 中获取用户 ID
+	claims := c.MustGet("claims").(*auth2.Claims)
+	uid := claims.UID
+
+	// 1. 解析 JSON
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	// 2. 调用服务层
+	err := h.svc.BalancePaymentService(c, uid, &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, "success")
+}
+
+func (h OrderHandler) HistoryHandler(c *gin.Context) {
+
+	// 0. 从 JWT 中获取用户 ID
+	claims := c.MustGet("claims").(*auth2.Claims)
+	uid := claims.UID
+
+	// 1. 获取 Page 和 Pagesize
+	pageStr := c.DefaultQuery("page", "1")
+	// pagesize := c.DefaultQuery("page_size", 10)
+
+	// 暂时不可指定 pagesize
+	pageSizeStr := "10"
+
+	page, err := strconv.ParseInt(pageStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page"})
+		return
+	}
+	pageSize, err := strconv.ParseInt(pageSizeStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page size"})
+		return
+	}
+
+	// 2. 获取订单历史
+	history, err := h.svc.GetHistoryService(c, uid, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	c.JSON(http.StatusOK, history)
 }

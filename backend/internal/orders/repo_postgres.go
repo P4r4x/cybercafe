@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/shopspring/decimal"
-	"time"
 )
 
 type PostgresRepo struct {
@@ -146,21 +147,24 @@ func (r *PostgresRepo) CreateOrder(ctx context.Context, order *PersistOrder) (in
 	const query = `
 		INSERT INTO orders (user_id, total_amount, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id
+		RETURNING id, expired_at
 	`
 
 	var orderID int64
+	var expiredAt time.Time
 	err := r.tx.QueryRowContext(ctx, query,
 		order.UID,
 		order.TotalAmount,
 		order.Status,
 		order.CreatedAt,
 		order.UpdatedAt,
-	).Scan(&orderID)
+	).Scan(&orderID, &expiredAt)
 
 	if err != nil {
 		return 0, err
 	}
+
+	order.ExpiredAt = expiredAt
 
 	return orderID, nil
 }
@@ -311,12 +315,19 @@ func (r *PostgresRepo) CommitOrderPayment(ctx context.Context, uid string, order
 
 	// 1. 归属查询, 并上锁
 	const query1 = `
-    SELECT total_amount, expired_at
-        FROM orders
-        WHERE id = $1
-          AND user_id = $2
-          AND status = 'created'
-    `
+		SELECT total_amount, expired_at
+		FROM orders
+		WHERE id = $1
+		  AND user_id = $2
+		  AND status = 'created'
+	`
+	err := r.tx.QueryRowContext(ctx, query1, orderID, uid).Scan(&totalAmount, &expiredAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrOrderNotPayable
+	}
+	if err != nil {
+		return err
+	}
 
 	// 2. 过期校验
 	const query2 = `
@@ -343,7 +354,7 @@ func (r *PostgresRepo) CommitOrderPayment(ctx context.Context, uid string, order
 	AND status = 'active'
 	FOR UPDATE;
 	`
-	err := r.tx.QueryRowContext(ctx, query3, uid).Scan(&balance)
+	err = r.tx.QueryRowContext(ctx, query3, uid).Scan(&balance)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrUserNotExist
 	}
@@ -360,7 +371,8 @@ func (r *PostgresRepo) CommitOrderPayment(ctx context.Context, uid string, order
 	AND balance >= $1
 	`
 
-	res, err := r.tx.ExecContext(ctx, query4, totalAmount, uid)
+	var res sql.Result
+	res, err = r.tx.ExecContext(ctx, query4, totalAmount, uid)
 	if err != nil {
 		return err
 	}
@@ -384,4 +396,181 @@ func (r *PostgresRepo) CommitOrderPayment(ctx context.Context, uid string, order
 		return err
 	}
 	return nil
+}
+
+/*
+===========================================================
+返回用户订单历史的方法
+===========================================================
+*/
+
+func (r *PostgresRepo) GetHistory(
+	ctx context.Context,
+	uid string,
+	page int64,
+	pageSize int64,
+) (*HistoryResponse, error) {
+
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	offset := (page - 1) * pageSize
+
+	// =============================
+	// 1. 查询订单列表
+	// =============================
+	orderRows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, status, total_amount, created_at
+		FROM orders
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, uid, pageSize, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer func(orderRows *sql.Rows) {
+		err := orderRows.Close()
+		if err != nil {
+
+		}
+	}(orderRows)
+
+	var orders []*OrderHistory
+	orderMap := make(map[int64]*OrderHistory)
+	var orderIDs []int64
+
+	for orderRows.Next() {
+		var o OrderHistory
+
+		err := orderRows.Scan(
+			&o.ID,
+			&o.UserID,
+			&o.Status,
+			&o.TotalAmount,
+			&o.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		o.Items = make([]*OrderHistoryItem, 0)
+
+		orderMap[o.ID] = &o
+		orderIDs = append(orderIDs, o.ID)
+		orders = append(orders, &o)
+	}
+
+	if err := orderRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// 没有订单直接返回
+	if len(orderIDs) == 0 {
+		return &HistoryResponse{History: orders}, nil
+	}
+
+	// =============================
+	// 2️⃣ 查询所有 order_items
+	// =============================
+	itemRows, err := r.db.QueryContext(ctx, `
+		SELECT id, order_id, product_id, product_name, quantity, base_price
+		FROM order_items
+		WHERE order_id = ANY($1)
+	`, orderIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer func(itemRows *sql.Rows) {
+		err := itemRows.Close()
+		if err != nil {
+
+		}
+	}(itemRows)
+
+	itemMap := make(map[int64]*OrderHistoryItem)
+	var itemIDs []int64
+
+	for itemRows.Next() {
+		var item OrderHistoryItem
+		var orderID int64
+
+		err := itemRows.Scan(
+			&item.ID,
+			&orderID,
+			&item.ProductID,
+			&item.ProductName,
+			&item.Quantity,
+			&item.BasePrice,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		item.Options = make([]OrderHistoryItemOption, 0)
+
+		itemMap[item.ID] = &item
+		itemIDs = append(itemIDs, item.ID)
+
+		if order, ok := orderMap[orderID]; ok {
+			order.Items = append(order.Items, &item)
+		}
+	}
+
+	if err := itemRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// 没有 item
+	if len(itemIDs) == 0 {
+		return &HistoryResponse{History: orders}, nil
+	}
+
+	// =============================
+	// 3️⃣ 查询所有 options
+	// =============================
+	optionRows, err := r.db.QueryContext(ctx, `
+		SELECT id, order_item_id, option_code, option_value, extra_price
+		FROM order_item_options
+		WHERE order_item_id = ANY($1)
+	`, itemIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer func(optionRows *sql.Rows) {
+		err := optionRows.Close()
+		if err != nil {
+
+		}
+	}(optionRows)
+
+	for optionRows.Next() {
+		var opt OrderHistoryItemOption
+		var itemID int64
+
+		err := optionRows.Scan(
+			&opt.ID,
+			&itemID,
+			&opt.OptionCode,
+			&opt.OptionValue,
+			&opt.ExtraPrice,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if item, ok := itemMap[itemID]; ok {
+			item.Options = append(item.Options, opt)
+		}
+	}
+
+	if err := optionRows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &HistoryResponse{History: orders}, nil
 }

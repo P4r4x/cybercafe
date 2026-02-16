@@ -8,7 +8,8 @@ create table public.products
             check (base_price >= (0)::numeric),
     is_active  boolean                  default true  not null,
     created_at timestamp with time zone default now() not null,
-    updated_at timestamp with time zone default now() not null
+    updated_at timestamp with time zone default now() not null,
+    description text
 );
 
 alter table public.products

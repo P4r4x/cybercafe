@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-type JSONMap map[string]string
+type JSONMap map[string]interface{}
 
 // Scan 给 JSONMap 类型增加 sql.Scanner 接口.
 // 支持 json / jsonb / text → JSONMap; 调整后 JSONMap 将可扫

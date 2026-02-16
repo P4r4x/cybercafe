@@ -117,3 +117,8 @@ func (h *CredentialHandler) LoginHandler(c *gin.Context) {
 		"message": "success",
 	})
 }
+
+func (h *CredentialHandler) LogoutHandler(c *gin.Context) {
+	c.SetCookie("cookie", "", -1, "/", "", true, true)
+	c.JSON(http.StatusOK, gin.H{"message": "success"})
+}

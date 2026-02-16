@@ -4,9 +4,9 @@ CREATE TABLE public.orders (
                                user_id       text         NOT NULL,
                                total_amount  decimal(10,2) NOT NULL,
                                status        text         NOT NULL DEFAULT 'created',
-                               created_at    timestamp    NOT NULL DEFAULT now(),
-                               updated_at    timestamp    NOT NULL DEFAULT now(),
-                               expired_at    timestamp    NOT NULL
+                               created_at    timestamptz    NOT NULL DEFAULT now(),
+                               updated_at    timestamptz    NOT NULL DEFAULT now(),
+                               expired_at    timestamptz    NOT NULL
 );
 
 alter table public.orders
@@ -20,7 +20,7 @@ CREATE TABLE public.order_items (
                                     product_name  text         NOT NULL,
                                     quantity      int        NOT NULL,
                                     base_price    decimal(10,2) NOT NULL,
-                                    created_at    timestamp    NOT NULL DEFAULT now()
+                                    created_at    timestamptz    NOT NULL DEFAULT now()
 );
 
 alter table public.order_items
@@ -33,7 +33,7 @@ CREATE TABLE public.order_item_options (
                                            option_code   text         NOT NULL,
                                            option_value  text         NOT NULL,
                                            extra_price   decimal(10,2) NOT NULL DEFAULT 0,
-                                           created_at    timestamp    NOT NULL DEFAULT now()
+                                           created_at    timestamptz    NOT NULL DEFAULT now()
 );
 
 alter table public.order_item_options

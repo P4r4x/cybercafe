@@ -133,9 +133,10 @@ func (s *OrderService) ConfirmService(
 		return nil, err
 	}
 
-	// 8. 返回确认结果
+	// 8. 返回确认结果（包含过期时间）
 	return &ConfirmResponse{
 		Id:          OrderId(orderID),
+		ExpiredAt:   persistOrder.ExpiredAt,
 		PriceResult: req.Result,
 	}, nil
 }
@@ -195,4 +196,13 @@ func (s *OrderService) BalancePaymentService(ctx context.Context, uid string, re
 // GetBasicOrderService 获取订单基础信息
 func (s *OrderService) GetBasicOrderService(ctx context.Context, orderID int64) (*BasicOrderResponse, error) {
 	return s.repo.GetBasicOrder(ctx, orderID)
+}
+
+// GetHistoryService 获取订单历史
+func (s *OrderService) GetHistoryService(ctx context.Context, uid string, page int64, pageSize int64) (*HistoryResponse, error) {
+	res, err := s.repo.GetHistory(ctx, uid, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }

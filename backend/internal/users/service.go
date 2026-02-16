@@ -73,10 +73,31 @@ func (s UserService) AccountSummary(c context.Context, uid string) (*UserAccount
 	return result, nil
 }
 
-func (s UserService) UserBookshelf(uid string) ([]BookshelfItemDTO, error) {
-	return s.repo.GetBookshelf(uid)
+func (s UserService) UserBookshelf(uid string, page, pageSize int) ([]BookshelfItemDTO, Pagination, error) {
+	items, total, err := s.repo.GetBookshelf(uid, page, pageSize)
+	if err != nil {
+		return nil, Pagination{}, err
+	}
+
+	// 构造分页请求
+	pagination := Pagination{
+		Page:       page,
+		PageSize:   pageSize,
+		Total:      total,
+		TotalPages: (total + pageSize - 1) / pageSize,
+	}
+
+	return items, pagination, nil
 }
 
 func (s UserService) AddBook(uid string, bookID string) error {
 	return s.repo.AddBook(uid, bookID)
+}
+
+func (s UserService) RemoveBook(uid string, bookID string) error {
+	return s.repo.RemoveBook(uid, bookID)
+}
+
+func (s UserService) HasBook(uid string, bookID string) (bool, error) {
+	return s.repo.HasBook(uid, bookID)
 }

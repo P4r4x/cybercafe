@@ -42,12 +42,6 @@ type RegisterInfo struct {
 	Phone    *string `json:"phone"`
 }
 
-type BookshelfItemDTO struct {
-	BookID string
-	Title  string
-	Author string
-}
-
 type RegisterInfoDetail struct {
 	ID           string
 	UserID       string
@@ -59,4 +53,24 @@ type RegisterInfoDetail struct {
 
 type RegisterResult struct {
 	UserID string `json:"user_id"`
+}
+
+// 获取书架参数
+
+type BookshelfItemDTO struct {
+	BookID string
+	Title  string
+	Author string
+}
+
+type Pagination struct {
+	Page       int `json:"page"`
+	PageSize   int `json:"pageSize"`
+	Total      int `json:"total"`
+	TotalPages int `json:"totalPages"`
+}
+
+type BookshelfResponse struct {
+	Items      []BookshelfItemDTO `json:"items"`
+	Pagination Pagination         `json:"pagination"`
 }

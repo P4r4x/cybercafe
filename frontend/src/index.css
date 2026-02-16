@@ -2,6 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ====== 主题颜色变量 ====== */
+:root {
+  /* 亮色主题 - 柔和粉橙系 */
+  --color-surface: #FFF8F3;
+  --color-secondary: #FFE8DA;
+  --color-tertiary: #FFD0BA;
+  --color-text-primary: #1A1A2E;
+  --color-text-secondary: #5A6478;
+  --color-text-muted: #9AA4B2;
+  --color-border-light: #FFE4D6;
+  --color-border-medium: #FFD0BA;
+  --color-accent: #FF6B61;
+  --color-accent-light: #FFB088;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+}
+
+[data-theme="dark"] {
+  /* 暗色主题 - 深蓝/紫罗兰/夜樱/星空系 */
+  --color-surface: #0F1528;
+  --color-secondary: #1A1A2E;
+  --color-tertiary: #2D3344;
+  --color-text-primary: #E8EBF2;
+  --color-text-secondary: #9AA4B2;
+  --color-text-muted: #7A8494;
+  --color-border-light: #3D4556;
+  --color-border-medium: #4A5568;
+  --color-accent: #B388FF;
+  --color-accent-light: #A06BFF;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #38BDF8;
+}
+
+/* ====== Tailwind 扩展颜色类 ====== */
+.bg-surface { background-color: var(--color-surface); }
+.bg-secondary { background-color: var(--color-secondary); }
+.bg-tertiary { background-color: var(--color-tertiary); }
+
+.text-text-primary { color: var(--color-text-primary); }
+.text-text-secondary { color: var(--color-text-secondary); }
+.text-text-muted { color: var(--color-text-muted); }
+
+.border-border-light { border-color: var(--color-border-light); }
+.border-border-medium { border-color: var(--color-border-medium); }
+
+.text-accent { color: var(--color-accent); }
+.bg-accent { background-color: var(--color-accent); }
+.bg-accent-light { background-color: var(--color-accent-light); }
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -15,6 +68,36 @@
 
 .animate-fade-in {
   animation: fade-in 0.6s ease-out;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out;
 }
 
 @layer utilities {
@@ -71,5 +154,13 @@
 
   .animate-grid-drift {
     animation: grid-drift 20s ease-in-out infinite;
+  }
+
+  /* 文本截断样式 */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }

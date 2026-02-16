@@ -444,7 +444,7 @@ func (r *PostgresRepo) loadOptionValues(
 // 输入：用户ID string，订单上下文 *OrderContext，价格结果 *PriceResult
 // 输出：持久化订单结构 *PersistOrder
 // 作用：将计算态的订单上下文转换为数据库持久化结构
-// 转换：订单总金额、状态初始化、时间戳设置
+// 转换：订单总金额、状态初始化、时间戳设置（expired_at 由数据库默认值设置）
 func convertToPersistOrder(
 	uid string,
 	orderCtx *OrderContext,
@@ -454,8 +454,8 @@ func convertToPersistOrder(
 		UID:         uid,
 		TotalAmount: priceResult.Total,
 		Status:      "created", // 初始状态
-		CreatedAt:   time.Now().Format("2006-01-02 15:04:05"),
-		UpdatedAt:   time.Now().Format("2006-01-02 15:04:05"),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 }
 
@@ -477,7 +477,7 @@ func convertToPersistOrderItems(
 			ProductName: "", // 需要从商品表获取商品名称，暂时留空
 			Quantity:    itemCtx.Quantity,
 			BasePrice:   itemCtx.Product.BasePrice,
-			CreatedAt:   time.Now().Format("2006-01-02 15:04:05"),
+			CreatedAt:   time.Now(),
 		})
 	}
 
@@ -505,7 +505,7 @@ func convertToPersistOrderItemOptions(
 				OptionCode:  optCtx.Option.OptionCode,
 				OptionValue: optCtx.Value.Value,
 				ExtraPrice:  optCtx.Value.ExtraPrice,
-				CreatedAt:   time.Now().Format("2006-01-02 15:04:05"),
+				CreatedAt:   time.Now(),
 			})
 		}
 	}

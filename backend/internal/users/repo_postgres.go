@@ -130,21 +130,37 @@ func (p PostgresRepo) GetAccount(c context.Context, uid string) (*UserAccount, e
 	return &u, nil
 }
 
-func (p PostgresRepo) GetBookshelf(uid string) ([]BookshelfItemDTO, error) {
-	query := `
+func (p PostgresRepo) GetBookshelf(
+	uid string,
+	page, pageSize int,
+) ([]BookshelfItemDTO, int, error) {
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+
+	offset := (page - 1) * pageSize
+
+	const querySQL = `
 		SELECT
 			b.id,
 			b.title,
-			b.author
+			b.author,
+			COUNT(*) OVER() AS total
 		FROM user_bookshelf ub
 		JOIN books b ON ub.book_id = b.id
 		WHERE ub.uid = $1
+		  AND ub.deleted_at IS NULL
 		ORDER BY ub.created_at DESC
+		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := p.db.Query(query, uid)
+	rows, err := p.db.Query(querySQL, uid, pageSize, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
@@ -153,32 +169,42 @@ func (p PostgresRepo) GetBookshelf(uid string) ([]BookshelfItemDTO, error) {
 		}
 	}(rows)
 
-	items := make([]BookshelfItemDTO, 0)
+	items := make([]BookshelfItemDTO, 0, pageSize)
 
+	var total int
 	for rows.Next() {
 		var item BookshelfItemDTO
 		if err := rows.Scan(
 			&item.BookID,
 			&item.Title,
 			&item.Author,
+			&total,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		items = append(items, item)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return items, nil
+	// 如果当前页没有数据（比如 page 超出范围），total 会是 0
+	if len(items) == 0 {
+		return items, 0, nil
+	}
+
+	return items, total, nil
 }
 
 func (p PostgresRepo) AddBook(uid string, bookID string) error {
 	query := `
-		 INSERT INTO user_bookshelf (uid, book_id)
-        VALUES ($1, $2)
-        ON CONFLICT (uid, book_id) DO NOTHING
+		INSERT INTO user_bookshelf (uid, book_id)
+		VALUES ($1, $2)
+		ON CONFLICT (uid, book_id)
+		DO UPDATE
+		SET deleted_at = NULL
+		WHERE user_bookshelf.deleted_at IS NOT NULL;
 	`
 
 	_, err := p.db.Exec(query, uid, bookID)
@@ -187,6 +213,41 @@ func (p PostgresRepo) AddBook(uid string, bookID string) error {
 	}
 
 	return nil
+}
+
+func (p PostgresRepo) RemoveBook(uid string, bookID string) error {
+	query := `
+		UPDATE user_bookshelf
+		SET deleted_at = now()
+		WHERE uid = $1
+		  AND book_id = $2
+		  AND deleted_at IS NULL
+	`
+
+	_, err := p.db.Exec(query, uid, bookID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// HasBook 检查用户是否已添加某本书
+func (p PostgresRepo) HasBook(uid string, bookID string) (bool, error) {
+
+	const query = `
+		SELECT COUNT(*)
+		FROM user_bookshelf
+		WHERE uid = $1
+		  AND book_id = $2
+		  AND deleted_at IS NULL
+	`
+	var count int
+	err := p.db.QueryRow(query, uid, bookID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func parsePgRegisterError(err error) error {

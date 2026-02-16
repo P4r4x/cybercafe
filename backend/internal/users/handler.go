@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"regexp"
+	"strconv"
 )
 
 type UserHandler struct {
@@ -127,8 +128,23 @@ func (h *UserHandler) MeSummaryHandler(c *gin.Context) {
 }
 
 func (h *UserHandler) GetBookshelfHandler(c *gin.Context) {
+	// 获取分页参数
+	page := c.DefaultQuery("page", "1")
+	pageSize := c.DefaultQuery("pageSize", "6")
 
-	// 从 JWT 中获取用户 ID
+	pageInt, err := strconv.Atoi(page)
+	if err != nil || pageInt < 1 {
+		pageInt = 1
+	}
+	pageSizeInt, err := strconv.Atoi(pageSize)
+	if err != nil || pageSizeInt < 1 {
+		pageSizeInt = 6
+	}
+	if pageSizeInt > 100 {
+		pageSizeInt = 100 // 限制最大每页数量
+	}
+
+	// 获取用户ID
 	claimsAny, ok := c.Get("claims")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -140,14 +156,16 @@ func (h *UserHandler) GetBookshelfHandler(c *gin.Context) {
 		return
 	}
 
-	items, err := h.svc.UserBookshelf(claims.UID)
+	items, pagination, err := h.svc.UserBookshelf(claims.UID, pageInt, pageSizeInt)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query summary"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query bookshelf"})
 		return
 	}
 
-	c.JSON(http.StatusOK, items)
-
+	c.JSON(http.StatusOK, BookshelfResponse{
+		Items:      items,
+		Pagination: pagination,
+	})
 }
 
 func (h *UserHandler) AddBookHandler(c *gin.Context) {
@@ -180,5 +198,71 @@ func (h *UserHandler) AddBookHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "success",
+	})
+}
+
+func (h *UserHandler) RemoveBookHandler(c *gin.Context) {
+
+	// 从 JWT 中获取用户 ID
+	claimsAny, ok := c.Get("claims")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims, ok := claimsAny.(*auth2.Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	// 从 GET 里获取 book_id
+	// 从 URL 路径中获取 book_id 参数
+	bookID := c.Param("id")
+	if bookID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "book id is required"})
+		return
+	}
+
+	err := h.svc.RemoveBook(claims.UID, bookID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
+	})
+}
+
+func (h *UserHandler) HasBookHandler(c *gin.Context) {
+
+	// 从 JWT 中获取用户 ID
+	claimsAny, ok := c.Get("claims")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	claims, ok := claimsAny.(*auth2.Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	// 从 GET 里获取 book_id
+	// 从 URL 路径中获取 book_id 参数
+	bookID := c.Param("id")
+	if bookID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "book id is required"})
+		return
+	}
+
+	has, err := h.svc.HasBook(claims.UID, bookID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": has,
 	})
 }
