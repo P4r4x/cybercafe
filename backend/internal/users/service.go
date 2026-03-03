@@ -12,10 +12,10 @@ import (
 var ErrUserNotFound = errors.New("user not found")
 
 type UserService struct {
-	repo UserRepo
+	repo UserPostgresRepo
 }
 
-func NewService(repo UserRepo) *UserService {
+func NewService(repo UserPostgresRepo) *UserService {
 	return &UserService{
 		repo: repo,
 	}

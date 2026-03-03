@@ -206,3 +206,8 @@ func (s *OrderService) GetHistoryService(ctx context.Context, uid string, page i
 	}
 	return res, nil
 }
+
+// GetUnpaidService 获取未支付订单
+func (s *OrderService) GetUnpaidService(ctx context.Context, uid string) ([]*OrderHistory, error) {
+	return s.repo.GetUnpaidOrders(ctx, uid)
+}

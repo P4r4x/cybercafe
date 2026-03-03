@@ -421,10 +421,23 @@ func (r *PostgresRepo) GetHistory(
 	offset := (page - 1) * pageSize
 
 	// =============================
-	// 1. 查询订单列表
+	// 1. 查询总数
+	// =============================
+	var total int64
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM orders WHERE user_id = $1
+	`, uid).Scan(&total)
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := (total + pageSize - 1) / pageSize
+
+	// =============================
+	// 2. 查询订单列表
 	// =============================
 	orderRows, err := r.db.QueryContext(ctx, `
-		SELECT id, user_id, status, total_amount, created_at
+		SELECT id, user_id, status, total_amount, created_at, expired_at
 		FROM orders
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -453,6 +466,7 @@ func (r *PostgresRepo) GetHistory(
 			&o.Status,
 			&o.TotalAmount,
 			&o.CreatedAt,
+			&o.ExpiredAt,
 		)
 		if err != nil {
 			return nil, err
@@ -471,11 +485,11 @@ func (r *PostgresRepo) GetHistory(
 
 	// 没有订单直接返回
 	if len(orderIDs) == 0 {
-		return &HistoryResponse{History: orders}, nil
+		return &HistoryResponse{History: orders, Total: total, TotalPages: totalPages}, nil
 	}
 
 	// =============================
-	// 2️⃣ 查询所有 order_items
+	// 3. 查询所有 order_items
 	// =============================
 	itemRows, err := r.db.QueryContext(ctx, `
 		SELECT id, order_id, product_id, product_name, quantity, base_price
@@ -527,11 +541,11 @@ func (r *PostgresRepo) GetHistory(
 
 	// 没有 item
 	if len(itemIDs) == 0 {
-		return &HistoryResponse{History: orders}, nil
+		return &HistoryResponse{History: orders, Total: total, TotalPages: totalPages}, nil
 	}
 
 	// =============================
-	// 3️⃣ 查询所有 options
+	// 4. 查询所有 options
 	// =============================
 	optionRows, err := r.db.QueryContext(ctx, `
 		SELECT id, order_item_id, option_code, option_value, extra_price
@@ -572,5 +586,169 @@ func (r *PostgresRepo) GetHistory(
 		return nil, err
 	}
 
-	return &HistoryResponse{History: orders}, nil
+	return &HistoryResponse{History: orders, Total: total, TotalPages: totalPages}, nil
+}
+
+/*
+===========================================================
+获取用户所有未支付订单
+===========================================================
+*/
+
+// GetUnpaidOrders 获取所有未支付订单, 带详情; 复用了获取历史订单的逻辑
+func (r *PostgresRepo) GetUnpaidOrders(ctx context.Context, uid string) ([]*OrderHistory, error) {
+
+	// =============================
+	// 1. 查询未支付订单列表
+	// =============================
+	orderRows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, status, total_amount, created_at, expired_at
+		FROM orders
+		WHERE user_id = $1 AND status = 'created'
+		ORDER BY created_at DESC
+	`, uid)
+	if err != nil {
+		return nil, err
+	}
+	defer func(orderRows *sql.Rows) {
+		err := orderRows.Close()
+		if err != nil {
+
+		}
+	}(orderRows)
+
+	var orders []*OrderHistory
+	orderMap := make(map[int64]*OrderHistory)
+	var orderIDs []int64
+
+	for orderRows.Next() {
+		var o OrderHistory
+
+		err := orderRows.Scan(
+			&o.ID,
+			&o.UserID,
+			&o.Status,
+			&o.TotalAmount,
+			&o.CreatedAt,
+			&o.ExpiredAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		o.Items = make([]*OrderHistoryItem, 0)
+
+		orderMap[o.ID] = &o
+		orderIDs = append(orderIDs, o.ID)
+		orders = append(orders, &o)
+	}
+
+	if err := orderRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// 没有未支付订单直接返回
+	if len(orderIDs) == 0 {
+		return orders, nil
+	}
+
+	// =============================
+	// 2. 查询所有 order_items
+	// =============================
+	itemRows, err := r.db.QueryContext(ctx, `
+		SELECT id, order_id, product_id, product_name, quantity, base_price
+		FROM order_items
+		WHERE order_id = ANY($1)
+	`, orderIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer func(itemRows *sql.Rows) {
+		err := itemRows.Close()
+		if err != nil {
+
+		}
+	}(itemRows)
+
+	itemMap := make(map[int64]*OrderHistoryItem)
+	var itemIDs []int64
+
+	for itemRows.Next() {
+		var item OrderHistoryItem
+		var orderID int64
+
+		err := itemRows.Scan(
+			&item.ID,
+			&orderID,
+			&item.ProductID,
+			&item.ProductName,
+			&item.Quantity,
+			&item.BasePrice,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		item.Options = make([]OrderHistoryItemOption, 0)
+
+		itemMap[item.ID] = &item
+		itemIDs = append(itemIDs, item.ID)
+
+		if order, ok := orderMap[orderID]; ok {
+			order.Items = append(order.Items, &item)
+		}
+	}
+
+	if err := itemRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// 没有 item
+	if len(itemIDs) == 0 {
+		return orders, nil
+	}
+
+	// =============================
+	// 3. 查询所有 options
+	// =============================
+	optionRows, err := r.db.QueryContext(ctx, `
+		SELECT id, order_item_id, option_code, option_value, extra_price
+		FROM order_item_options
+		WHERE order_item_id = ANY($1)
+	`, itemIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer func(optionRows *sql.Rows) {
+		err := optionRows.Close()
+		if err != nil {
+
+		}
+	}(optionRows)
+
+	for optionRows.Next() {
+		var opt OrderHistoryItemOption
+		var itemID int64
+
+		err := optionRows.Scan(
+			&opt.ID,
+			&itemID,
+			&opt.OptionCode,
+			&opt.OptionValue,
+			&opt.ExtraPrice,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if item, ok := itemMap[itemID]; ok {
+			item.Options = append(item.Options, opt)
+		}
+	}
+
+	if err := optionRows.Err(); err != nil {
+		return nil, err
+	}
+
+	return orders, nil
 }

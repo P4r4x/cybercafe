@@ -2,6 +2,7 @@ package main
 
 import (
 	"CyberCafe/backend/internal/infra/db"
+	"CyberCafe/backend/internal/infra/redis"
 	"CyberCafe/backend/internal/router"
 	"github.com/gin-gonic/gin"
 	"log"
@@ -16,6 +17,13 @@ func main() {
 		log.Fatalf("init postgres failed: %v", err)
 	}
 
+	// ====== 初始化 Redis ======
+
+	r, err := redis.NewRedis()
+	if err != nil {
+		log.Fatalf("init redis failed: %v", err)
+	}
+
 	// ====== 全局中间件和构建引擎 ======
 
 	engine := gin.New()
@@ -24,7 +32,7 @@ func main() {
 
 	// ====== 初始化路由 ======
 
-	router.InitRoutes(engine, pg)
+	router.InitRoutes(engine, pg, r)
 
 	// ====== 启动服务 ======
 

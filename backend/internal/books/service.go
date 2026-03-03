@@ -7,7 +7,7 @@ import (
 )
 
 type BookService struct {
-	repo BookRepo
+	repo BookPostgresRepo
 }
 
 // ====== 报错信息 ======
@@ -33,18 +33,13 @@ var ErrBorrowLimitExceeded = errors.New("borrow limit exceeded")
 // ErrUserNotFound 未找到 用户
 var ErrUserNotFound = errors.New("user not found")
 
-func NewService(repo BookRepo) *BookService {
+func NewService(repo BookPostgresRepo) *BookService {
 	return &BookService{repo: repo}
 }
 
 // BookQueryService 查询图书服务, 支持多条件查询
 func (s *BookService) BookQueryService(ctx context.Context, q BookQuery) ([]*Book, error) {
-	//TODO 权限, 校验, 统计, 缓存, 并发控制
-	result, err := s.repo.Find(ctx, q)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return s.repo.Find(ctx, q)
 }
 
 // BookBorrowService 借书服务

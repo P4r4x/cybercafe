@@ -80,7 +80,7 @@ export const Sidebar: React.FC = () => {
     { id: 'bookshelf', label: '书架', icon: BookOpen, path: '/bookshelf' },
 
     { id: 'tea', label: '茶饮', icon: Coffee, path: '/products' },
-    // { id: 'orders', label: '订单', icon: ShoppingCart, path: '/orders' },
+    { id: 'orders', label: '订单', icon: ShoppingCart, path: '/orders' },
     { id: 'member', label: '会员中心', icon: User, path: '/member' }
   ]
 

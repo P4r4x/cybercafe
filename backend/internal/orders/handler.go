@@ -165,3 +165,18 @@ func (h OrderHandler) HistoryHandler(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, history)
 }
+
+func (h OrderHandler) GetUnpaidHandler(c *gin.Context) {
+
+	// 0. 从 JWT 中获取用户 ID
+	claims := c.MustGet("claims").(*auth2.Claims)
+	uid := claims.UID
+
+	// 1. 获取未支付订单
+	orders, err := h.svc.GetUnpaidService(c, uid)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"orders": orders})
+}

@@ -299,7 +299,7 @@ func (r *PostgresRepo) loadProducts(
 	}
 
 	query := `
-		SELECT id, base_price, is_active
+		SELECT id, name, base_price, is_active
 		FROM products
 		WHERE id = ANY($1)
 	`
@@ -320,6 +320,7 @@ func (r *PostgresRepo) loadProducts(
 		var p ProductSnapshot
 		if err := rows.Scan(
 			&p.ID,
+			&p.Name,
 			&p.BasePrice,
 			&p.IsActive,
 		); err != nil {
@@ -474,7 +475,7 @@ func convertToPersistOrderItems(
 		items = append(items, &PersistOrderItem{
 			OrderID:     orderID,
 			ProductID:   itemCtx.Product.ID,
-			ProductName: "", // 需要从商品表获取商品名称，暂时留空
+			ProductName: itemCtx.Product.Name,
 			Quantity:    itemCtx.Quantity,
 			BasePrice:   itemCtx.Product.BasePrice,
 			CreatedAt:   time.Now(),

@@ -2,11 +2,17 @@ package books
 
 import "context"
 
-type BookRepo interface {
+type BookPostgresRepo interface {
 	Find(ctx context.Context, q BookQuery) ([]*Book, error)
+	GetByID(ctx context.Context, id BookID) (*Book, error)
 	AddRemain(ctx context.Context, uid string, bookID BookID, delta int) error
 	AddStock(ctx context.Context, bookID BookID, delta int) error
 	Search(ctx context.Context, q SearchBooksReq) ([]*Book, error)
 	GetUserBorrowStatus(ctx context.Context, uid string) (BorrowStatus, error)
 	GetUserLevel(ctx context.Context, uid string) (int, error)
+}
+
+type BookCacheRepo interface {
+	BookPostgresRepo
+	InvalidateBookCache(ctx context.Context, id BookID) error
 }

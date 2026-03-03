@@ -2,11 +2,12 @@ package products
 
 import "context"
 
+// ProductService 商品查询服务
 type ProductService struct {
-	repo ProductRepo
+	repo ProductPostgresRepo
 }
 
-func NewService(repo ProductRepo) *ProductService {
+func NewService(repo ProductPostgresRepo) *ProductService {
 	return &ProductService{repo: repo}
 }
 

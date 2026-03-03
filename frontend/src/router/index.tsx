@@ -6,6 +6,7 @@ import BookDetailPage from "@/pages/BookDetailPage"
 import BookshelfPage from "@/pages/BookshelfPage"
 import ProductsPage from "@/pages/ProductsPage"
 import PaymentPage from "@/pages/PaymentPage"
+import OrdersPage from "@/pages/OrdersPage"
 import ImageUsageExamples from "@/components/examples/ImageUsageExamples"
 import { AppLayout } from "./AppLayout"
 
@@ -40,6 +41,10 @@ export const router = createBrowserRouter([
       {
         path: "/products",
         element: <ProductsPage />,
+      },
+      {
+        path: "/orders",
+        element: <OrdersPage />,
       },
       {
         path: "/payment",

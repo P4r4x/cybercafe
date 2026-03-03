@@ -706,6 +706,229 @@ snapshot 在同一事务中生成，保证一致性
 自动化导入进入数据库;
 后端需要断点续传epub到前端, 不能原样传输整个文件防止泄露
 
+### 接入 Redis
+
+> 2026/02/28
+
+#### 规范化部署并用 Docker 部署 Redis
+
+准备文件结构:
+
+```
+cybercafe/
+│
+├── docker/
+│   ├── docker-compose.yml
+│   ├── .env                  ← 仅给 compose + PG 用
+│   │
+│   └── redis/
+│       └── users.acl         ← Redis ACL 文件
+│
+├── assets/
+│   ├── db/
+│   └── redis/
+│
+└── env/                      ← 给 Go 应用用
+    └── app.env
+```
+
+`users.acl` 用于管理 redis:7 的用户:
+
+```acl
+
+# 禁用默认用户
+user default off
+
+# 添加 cybercafe 用户
+user cybercafe on >cybercafe allcommands allkeys
+```
+
+准备一个 `docker-compose.yml` :
+
+```yml
+name: cybercafe
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: cybercafe-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+    volumes:
+      - ../assets/db:/var/lib/postgresql/data
+    ports:
+      - "15432:5432"
+
+  redis:
+    image: redis:7
+    container_name: cybercafe-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --aclfile /usr/local/etc/redis/users.acl
+    volumes:
+      - ../assets/redis:/data
+      - ./redis/users.acl:/usr/local/etc/redis/users.acl
+    ports:
+      - "16379:6379"
+```
+
+docker 目录执行:
+
+```bash
+docker compose up -d
+```
+
+#### 重构 router
+
+用容器模式重构 router;
+
+示例:
+
+```go
+// Container 依赖注入容器
+// 负责管理所有模块的依赖初始化和 Handler 实例
+type Container struct {
+	db    *db.Postgres
+	redis *redis.Redis
+
+	// 各模块的 Handler（供路由注册使用）
+	BookHandler      *books2.BookHandler
+	AuthHandler      *auth.CredentialHandler
+	UserHandler      *users2.UserHandler
+	DashboardHandler *dashboard2.Handler
+	OrderHandler     *order2.OrderHandler
+	ProductHandler   *products2.ProductHandler
+}
+
+// NewContainer 创建容器实例，初始化所有依赖
+func NewContainer(pg *db.Postgres, r *redis.Redis) *Container {
+	c := &Container{
+		db:    pg,
+		redis: r,
+	}
+	c.initBooks()
+	c.initAuth()
+	c.initUsers()
+	c.initDashboard()
+	c.initOrders()
+	c.initProducts()
+	return c
+}
+
+// initBooks 初始化图书模块的依赖
+func (c *Container) initBooks() {
+	repo := books2.NewPostgresRepo(c.db.DB())
+	svc := books2.NewService(repo)
+	c.BookHandler = books2.NewHandler(svc)
+}
+```
+
+这样职责会更加清晰, 新路由新功能加入时按需在上方加入即可;
+
+#### 接入计划
+
+| 接口路径 | 场景描述 | 缓存策略 / TTL | 适配度 | 备注 | 进度 |
+|-----------|------------|----------------|--------|------|----|
+| `GET /api/products/all` | 全局商品列表，极少变更 | TTL 5–10 分钟 | 高 | 使用“旁路缓存（Cache-Aside）”，注意数据量不要过大，避免单 Key 体积过大影响网络与内存效率。 | 已完成: `2026/03/03`|
+| `GET /api/books/:id` | 单本详情，读多写少 | TTL 5–10 分钟 | 高 | 经典 Cache-Aside 模式。库存或详情变更时必须主动删除缓存。 | 已完成: `2026/03/03` |
+| `POST /api/books/search` | 搜索结果，复用高 | TTL 2–5 分钟 | 中 | 警惕缓存污染。对搜索参数做规范化排序后哈希（如 SHA256）作为 Key。 | TODO |
+| `GET /api/me/summary` | 用户个人摘要 | TTL 1–2 分钟 | 中 | Key 必须带用户维度：user:summary:{uid}，防止数据串号。 | TODO |
+| `GET /api/me/dashboard` | 仪表盘汇总数据 | TTL 1–2 分钟 | 中 | 建议在相关数据变更时主动删除对应 Key，实现“准实时”效果。 | TODO |
+| `GET /api/me/recent`... | 最近借阅记录 | TTL 1–2 分钟 | 中 | 同上，Key 必须细分到用户级别，例如 user:recent:{uid}。 | TODO |
+| `POST /api/login` | 登录限流 / 防暴力破解 | 动态过期（滑动窗口） | 高 | 属于业务控制而非缓存。建议使用 Redis 的 INCR + EXPIRE 实现限流。 | Future |
+| Token 黑名单 | JWT 立即失效控制 | TTL = Token 剩余有效期 | 高 | 安全关键逻辑。仅在登出或强制失效时写入 Redis。注意不要做全量扫描。 | Future |
+
+#### Redis 缓存设计模式
+
+- Cache-Aside: (最常用)
+
+```
+1. 先查 Redis
+2. 没有命中 → 查 DB
+3. 查到 → 写回 Redis
+4. 返回数据
+```
+
+- Read-Through (读穿)
+
+```
+App → Cache → DB
+```
+
+由缓存层自动帮查数据库; 
+
+> 代码干净, 统一管理, 但是**Redis 原生不支持**
+
+- Write-Through (写穿)
+
+```
+写 Cache → Cache 自动写 DB
+```
+
+强一致性, 业务场景需要极强的一致性时考虑; 写延迟高, Redis 适配低
+
+- Write-Behind (写回)
+
+```
+写 Cache → 异步写 DB
+```
+
+性能极高, 一致性差;
+
+> 现在显然用旁路缓存即可; 结构:
+
+```go
+func GetAllProducts(ctx context.Context) ([]Product, error) {
+	key := "product:list:all"
+
+	// 查缓存
+	val, err := rdb.Get(ctx, key).Result()
+	if err == nil {
+		var list []Product
+		_ = json.Unmarshal([]byte(val), &list)
+		return list, nil
+	}
+
+	// 查数据库
+	list, err := repo.GetAllFromDB()
+	if err != nil {
+		return nil, err
+	}
+
+	// 回写缓存
+	bytes, _ := json.Marshal(list)
+	rdb.Set(ctx, key, bytes, 0) // 永不过期
+
+	return list, nil
+}
+```
+#### 实现
+
+```
+HTTP 请求
+   ↓
+Gin Router (routes.go)
+   ↓
+Handler (handler.go)
+   ↓
+Service (service.go)
+   ↓
+CacheDecorator (repo_cache.go) ←── Redis 缓存层
+   ↓
+PostgresRepo (repo_postgres.go) ←── 数据库层
+   ↓
+PostgreSQL
+```
+
+
+
 ## 测试数据:
 
 ```json
@@ -757,7 +980,7 @@ docker compose up -d
 ```
 
 ## (TODO) 结构
-
+                  
 ```
 src/
 ├─ api/                # 所有后端通信（REST / GraphQL）

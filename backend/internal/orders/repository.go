@@ -10,6 +10,7 @@ type OrderRepo interface {
 	CancelOrder(ctx context.Context, uid string, orderID int64) error
 	GetBasicOrder(ctx context.Context, orderID int64) (*BasicOrderResponse, error)
 	GetHistory(ctx context.Context, uid string, page int64, pageSize int64) (*HistoryResponse, error)
+	GetUnpaidOrders(ctx context.Context, uid string) ([]*OrderHistory, error)
 }
 
 type OrderTx interface {

@@ -36,6 +36,7 @@ type OrderItemOption struct {
 // ProductSnapshot 商品基础信息
 type ProductSnapshot struct {
 	ID        int64
+	Name      string
 	BasePrice decimal.Decimal
 	IsActive  bool
 }
@@ -179,7 +180,9 @@ type OrderHistoryRequest struct {
 // 2. 响应结构
 
 type HistoryResponse struct {
-	History []*OrderHistory `json:"history"`
+	History    []*OrderHistory `json:"history"`
+	Total      int64           `json:"total"`
+	TotalPages int64           `json:"total_pages"`
 }
 
 type OrderHistory struct {
@@ -188,6 +191,7 @@ type OrderHistory struct {
 	Status      string              `json:"status"`
 	TotalAmount decimal.Decimal     `json:"total_amount"`
 	CreatedAt   time.Time           `json:"created_at"`
+	ExpiredAt   time.Time           `json:"expired_at"`
 	Items       []*OrderHistoryItem `json:"items"`
 }
 
