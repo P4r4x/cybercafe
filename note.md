@@ -839,6 +839,7 @@ func (c *Container) initBooks() {
 | `GET /api/products/all` | 全局商品列表，极少变更 | TTL 5–10 分钟 | 高 | 使用“旁路缓存（Cache-Aside）”，注意数据量不要过大，避免单 Key 体积过大影响网络与内存效率。 | 已完成: `2026/03/03`|
 | `GET /api/books/:id` | 单本详情，读多写少 | TTL 5–10 分钟 | 高 | 经典 Cache-Aside 模式。库存或详情变更时必须主动删除缓存。 | 已完成: `2026/03/03` |
 | `POST /api/books/search` | 搜索结果，复用高 | TTL 2–5 分钟 | 中 | 警惕缓存污染。对搜索参数做规范化排序后哈希（如 SHA256）作为 Key。 | TODO |
+| `GET /api/me/bookshelf`| 用户书架查询 | TTL 2–5 分钟 | 中 | 用户书架是被大量访问的场景, 注意添加或移除书籍时需要删除缓存 | 已完成: `2026/03/04`|
 | `GET /api/me/summary` | 用户个人摘要 | TTL 1–2 分钟 | 中 | Key 必须带用户维度：user:summary:{uid}，防止数据串号。 | TODO |
 | `GET /api/me/dashboard` | 仪表盘汇总数据 | TTL 1–2 分钟 | 中 | 建议在相关数据变更时主动删除对应 Key，实现“准实时”效果。 | TODO |
 | `GET /api/me/recent`... | 最近借阅记录 | TTL 1–2 分钟 | 中 | 同上，Key 必须细分到用户级别，例如 user:recent:{uid}。 | TODO |

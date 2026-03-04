@@ -156,7 +156,7 @@ func (h *UserHandler) GetBookshelfHandler(c *gin.Context) {
 		return
 	}
 
-	items, pagination, err := h.svc.UserBookshelf(claims.UID, pageInt, pageSizeInt)
+	items, pagination, err := h.svc.UserBookshelf(c.Request.Context(), claims.UID, pageInt, pageSizeInt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query bookshelf"})
 		return
@@ -190,7 +190,7 @@ func (h *UserHandler) AddBookHandler(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.AddBook(claims.UID, bookID)
+	err := h.svc.AddBook(c.Request.Context(), claims.UID, bookID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -223,7 +223,7 @@ func (h *UserHandler) RemoveBookHandler(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.RemoveBook(claims.UID, bookID)
+	err := h.svc.RemoveBook(c.Request.Context(), claims.UID, bookID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -256,7 +256,7 @@ func (h *UserHandler) HasBookHandler(c *gin.Context) {
 		return
 	}
 
-	has, err := h.svc.HasBook(claims.UID, bookID)
+	has, err := h.svc.HasBook(c.Request.Context(), claims.UID, bookID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -131,6 +131,7 @@ func (p PostgresRepo) GetAccount(c context.Context, uid string) (*UserAccount, e
 }
 
 func (p PostgresRepo) GetBookshelf(
+	ctx context.Context,
 	uid string,
 	page, pageSize int,
 ) ([]BookshelfItemDTO, int, error) {
@@ -158,7 +159,7 @@ func (p PostgresRepo) GetBookshelf(
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := p.db.Query(querySQL, uid, pageSize, offset)
+	rows, err := p.db.QueryContext(ctx, querySQL, uid, pageSize, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -197,7 +198,7 @@ func (p PostgresRepo) GetBookshelf(
 	return items, total, nil
 }
 
-func (p PostgresRepo) AddBook(uid string, bookID string) error {
+func (p PostgresRepo) AddBook(ctx context.Context, uid string, bookID string) error {
 	query := `
 		INSERT INTO user_bookshelf (uid, book_id)
 		VALUES ($1, $2)
@@ -207,7 +208,7 @@ func (p PostgresRepo) AddBook(uid string, bookID string) error {
 		WHERE user_bookshelf.deleted_at IS NOT NULL;
 	`
 
-	_, err := p.db.Exec(query, uid, bookID)
+	_, err := p.db.ExecContext(ctx, query, uid, bookID)
 	if err != nil {
 		return err
 	}
@@ -215,7 +216,7 @@ func (p PostgresRepo) AddBook(uid string, bookID string) error {
 	return nil
 }
 
-func (p PostgresRepo) RemoveBook(uid string, bookID string) error {
+func (p PostgresRepo) RemoveBook(ctx context.Context, uid string, bookID string) error {
 	query := `
 		UPDATE user_bookshelf
 		SET deleted_at = now()
@@ -224,7 +225,7 @@ func (p PostgresRepo) RemoveBook(uid string, bookID string) error {
 		  AND deleted_at IS NULL
 	`
 
-	_, err := p.db.Exec(query, uid, bookID)
+	_, err := p.db.ExecContext(ctx, query, uid, bookID)
 	if err != nil {
 		return err
 	}
@@ -233,7 +234,7 @@ func (p PostgresRepo) RemoveBook(uid string, bookID string) error {
 }
 
 // HasBook 检查用户是否已添加某本书
-func (p PostgresRepo) HasBook(uid string, bookID string) (bool, error) {
+func (p PostgresRepo) HasBook(ctx context.Context, uid string, bookID string) (bool, error) {
 
 	const query = `
 		SELECT COUNT(*)
@@ -243,7 +244,7 @@ func (p PostgresRepo) HasBook(uid string, bookID string) (bool, error) {
 		  AND deleted_at IS NULL
 	`
 	var count int
-	err := p.db.QueryRow(query, uid, bookID).Scan(&count)
+	err := p.db.QueryRowContext(ctx, query, uid, bookID).Scan(&count)
 	if err != nil {
 		return false, err
 	}

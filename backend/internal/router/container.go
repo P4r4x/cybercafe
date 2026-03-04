@@ -43,7 +43,9 @@ func NewContainer(pg *db.Postgres, r *redis.Redis) *Container {
 
 // initBooks 初始化图书模块的依赖
 func (c *Container) initBooks() {
-	repo := books2.NewPostgresRepo(c.db.DB())
+	pgRepo := books2.NewPostgresRepo(c.db.DB())
+	redisCache := books2.NewBookRedisCache(c.redis.Cache())
+	repo := books2.NewBookCacheDecorator(pgRepo, redisCache)
 	svc := books2.NewService(repo)
 	c.BookHandler = books2.NewHandler(svc)
 }
@@ -57,7 +59,9 @@ func (c *Container) initAuth() {
 
 // initUsers 初始化用户模块的依赖
 func (c *Container) initUsers() {
-	repo := users2.NewPostgresRepo(c.db.DB())
+	pgRepo := users2.NewPostgresRepo(c.db.DB())
+	redisCache := users2.NewUserRedisCache(c.redis.Cache())
+	repo := users2.NewUserCacheDecorator(pgRepo, redisCache)
 	svc := users2.NewService(repo)
 	c.UserHandler = users2.NewHandler(svc)
 }

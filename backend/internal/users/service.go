@@ -12,10 +12,10 @@ import (
 var ErrUserNotFound = errors.New("user not found")
 
 type UserService struct {
-	repo UserPostgresRepo
+	repo UserCacheRepo
 }
 
-func NewService(repo UserPostgresRepo) *UserService {
+func NewService(repo UserCacheRepo) *UserService {
 	return &UserService{
 		repo: repo,
 	}
@@ -73,8 +73,8 @@ func (s UserService) AccountSummary(c context.Context, uid string) (*UserAccount
 	return result, nil
 }
 
-func (s UserService) UserBookshelf(uid string, page, pageSize int) ([]BookshelfItemDTO, Pagination, error) {
-	items, total, err := s.repo.GetBookshelf(uid, page, pageSize)
+func (s UserService) UserBookshelf(ctx context.Context, uid string, page, pageSize int) ([]BookshelfItemDTO, Pagination, error) {
+	items, total, err := s.repo.GetBookshelf(ctx, uid, page, pageSize)
 	if err != nil {
 		return nil, Pagination{}, err
 	}
@@ -90,14 +90,14 @@ func (s UserService) UserBookshelf(uid string, page, pageSize int) ([]BookshelfI
 	return items, pagination, nil
 }
 
-func (s UserService) AddBook(uid string, bookID string) error {
-	return s.repo.AddBook(uid, bookID)
+func (s UserService) AddBook(ctx context.Context, uid string, bookID string) error {
+	return s.repo.AddBook(ctx, uid, bookID)
 }
 
-func (s UserService) RemoveBook(uid string, bookID string) error {
-	return s.repo.RemoveBook(uid, bookID)
+func (s UserService) RemoveBook(ctx context.Context, uid string, bookID string) error {
+	return s.repo.RemoveBook(ctx, uid, bookID)
 }
 
-func (s UserService) HasBook(uid string, bookID string) (bool, error) {
-	return s.repo.HasBook(uid, bookID)
+func (s UserService) HasBook(ctx context.Context, uid string, bookID string) (bool, error) {
+	return s.repo.HasBook(ctx, uid, bookID)
 }

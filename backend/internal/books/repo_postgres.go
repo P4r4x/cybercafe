@@ -80,16 +80,6 @@ func (r *PostgresRepo) Find(ctx context.Context, q BookQuery) ([]*Book, error) {
 	return books, nil
 }
 
-// GetByID
-// 根据 id 获取图书信息
-func (r *PostgresRepo) GetByID(ctx context.Context, id BookID) (*Book, error) {
-	res, err := r.Find(ctx, BookQuery{ID: &id})
-	if err != nil {
-		return nil, err
-	}
-	return res[0], nil
-}
-
 // AddRemain 增加 / 减少 图书余量 , 基于预编译和参数化查询, 同时生成记录
 func (r *PostgresRepo) AddRemain(
 	parent context.Context,

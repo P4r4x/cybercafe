@@ -204,7 +204,7 @@ export const BookshelfGrid: React.FC<BookshelfGridProps> = ({ onBookClick }) => 
           >
             {displayedBooks.map((book) => (
               <BookCard
-                key={book.BookID}
+                key={book.book_id}
                 book={book}
                 onClick={onBookClick}
               />

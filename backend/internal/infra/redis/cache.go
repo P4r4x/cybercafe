@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
@@ -44,6 +45,13 @@ func (c *Cache) Get(ctx context.Context, key string, result interface{}) error {
 		}
 		return err
 	}
+
+	// ====== DEBUG HIT 日志 ======
+	log.Printf(
+		"[Cache] [DEBUG] [HIT] %s - %s",
+		time.Now().Format("2006:01:02 15:04:05"),
+		key,
+	)
 
 	// 反序列化到传入的指针
 	if err := json.Unmarshal(data, result); err != nil {
@@ -94,5 +102,7 @@ func (c *Cache) Del(ctx context.Context, keys ...string) error {
 	if len(keys) == 0 {
 		return nil
 	}
+	// ====== DEBUG DEL 日志 ======
+	log.Printf("[Redis] [DEBUG] [DEL] %s - %v \n", time.Now().Format("2006:01:02 15:04:05"), keys)
 	return c.client.Del(ctx, keys...).Err()
 }

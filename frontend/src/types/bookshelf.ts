@@ -6,9 +6,9 @@ export interface Pagination {
 }
 
 export interface BookshelfItemDTO {
-  BookID: string
-  Title: string
-  Author: string
+  book_id: string
+  title: string
+  author: string
   cover_url?: string
 }
 

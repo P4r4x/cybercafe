@@ -190,7 +190,7 @@ export default function BookDetailPage() {
       
       // 立即更新状态实现即时反馈
       setIsInBookshelf(false)
-      setBookshelf(prev => prev.filter(item => item.BookID !== id))
+      setBookshelf(prev => prev.filter(item => item.book_id !== id))
       
       success('已从书架移除')
       
@@ -268,7 +268,7 @@ export default function BookDetailPage() {
   // 保留原有的书架状态同步作为备用
   useEffect(() => {
     if (bookshelf.length > 0 && id) {
-      const hasBook = bookshelf.some(b => b.BookID === id)
+      const hasBook = bookshelf.some(b => b.book_id === id)
       setIsInBookshelf(hasBook)
     }
   }, [bookshelf, id])

@@ -7,13 +7,13 @@ import (
 type UserPostgresRepo interface {
 	Register(c context.Context, d *RegisterInfoDetail) (RegisterResult, error)
 	GetAccount(c context.Context, uid string) (*UserAccount, error)
-	GetBookshelf(uid string, page, pageSize int) ([]BookshelfItemDTO, int, error)
-	AddBook(uid string, bookID string) error
-	RemoveBook(uid string, bookID string) error
-	HasBook(uid string, bookID string) (bool, error)
+	GetBookshelf(c context.Context, uid string, page, pageSize int) ([]BookshelfItemDTO, int, error)
+	AddBook(c context.Context, uid string, bookID string) error
+	RemoveBook(c context.Context, uid string, bookID string) error
+	HasBook(c context.Context, uid string, bookID string) (bool, error)
 }
 
-type UserRepo interface {
+type UserCacheRepo interface {
 	UserPostgresRepo
-	InvalidateBookshelfCache(ctx context.Context, uid string) error
+	InvalidateBookshelfCache(c context.Context, uid string) error
 }

@@ -4,7 +4,6 @@ import "context"
 
 type BookPostgresRepo interface {
 	Find(ctx context.Context, q BookQuery) ([]*Book, error)
-	GetByID(ctx context.Context, id BookID) (*Book, error)
 	AddRemain(ctx context.Context, uid string, bookID BookID, delta int) error
 	AddStock(ctx context.Context, bookID BookID, delta int) error
 	Search(ctx context.Context, q SearchBooksReq) ([]*Book, error)
@@ -14,5 +13,5 @@ type BookPostgresRepo interface {
 
 type BookCacheRepo interface {
 	BookPostgresRepo
-	InvalidateBookCache(ctx context.Context, id BookID) error
+	InvalidateCache(ctx context.Context, keys ...string) error
 }

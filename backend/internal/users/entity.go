@@ -58,9 +58,9 @@ type RegisterResult struct {
 // 获取书架参数
 
 type BookshelfItemDTO struct {
-	BookID string
-	Title  string
-	Author string
+	BookID string `json:"book_id"`
+	Title  string `json:"title"`
+	Author string `json:"author"`
 }
 
 type Pagination struct {

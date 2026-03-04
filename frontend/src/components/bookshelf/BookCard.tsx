@@ -35,14 +35,14 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onClick }) => {
       <div className="h-full aspect-[3/4] rounded-md overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: config.background.secondary }}>
         <BookCover
           src={book.cover_url}
-          alt={book.Title}
+          alt={book.title}
           width="100%"
           height="100%"
           className="w-full h-full object-contain"
           fallback={
             <img
               src="/assets/default.png"
-              alt={book.Title}
+              alt={book.title}
               className="w-full h-full object-contain"
             />
           }
@@ -61,7 +61,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onClick }) => {
           "
           style={{ color: config.text.primary }}
         >
-          {book.Title}
+          {book.title}
         </h3>
 
         {/* 作者 */}
@@ -72,7 +72,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onClick }) => {
           "
           style={{ color: config.text.secondary }}
         >
-          {book.Author}
+          {book.author}
         </p>
       </div>
     </div>

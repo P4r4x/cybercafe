@@ -7,7 +7,7 @@ import (
 )
 
 type BookService struct {
-	repo BookPostgresRepo
+	repo BookCacheRepo
 }
 
 // ====== 报错信息 ======
@@ -33,7 +33,7 @@ var ErrBorrowLimitExceeded = errors.New("borrow limit exceeded")
 // ErrUserNotFound 未找到 用户
 var ErrUserNotFound = errors.New("user not found")
 
-func NewService(repo BookPostgresRepo) *BookService {
+func NewService(repo BookCacheRepo) *BookService {
 	return &BookService{repo: repo}
 }
 
@@ -84,6 +84,8 @@ func (s *BookService) BookBorrowService(ctx context.Context, uid string, q BookC
 	if err := s.repo.AddRemain(ctx, uid, *bookId, -*amount); err != nil {
 		return nil, err
 	}
+	// 删除缓存
+	_ = s.repo.InvalidateCache(ctx, BookCacheKeyPrefix+string(*bookId))
 	return "success", nil
 }
 
@@ -105,6 +107,8 @@ func (s *BookService) BookReturnService(ctx context.Context, uid string, q BookC
 	if err != nil {
 		return nil, err
 	}
+	// 删除缓存
+	_ = s.repo.InvalidateCache(ctx, BookCacheKeyPrefix+string(*bookId))
 	return "success", nil
 
 }
@@ -124,6 +128,8 @@ func (s *BookService) BookAddStockService(ctx context.Context, q BookChangeStock
 	if err != nil {
 		return nil, err
 	}
+	// 删除缓存
+	_ = s.repo.InvalidateCache(ctx, BookCacheKeyPrefix+string(*bookId))
 	return "success", nil
 }
 

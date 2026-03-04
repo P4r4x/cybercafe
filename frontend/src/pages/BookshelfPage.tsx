@@ -9,7 +9,7 @@ export default function BookshelfPage() {
   const navigate = useNavigate()
 
   const handleBookClick = (book: BookshelfItemDTO) => {
-    navigate(`/book-detail/${book.BookID}`)
+    navigate(`/book-detail/${book.book_id}`)
   }
 
   return (
