@@ -8,5 +8,5 @@ type ProductPostgresRepo interface {
 
 type ProductCacheRepo interface {
 	ProductPostgresRepo
-	InvalidateCache(ctx context.Context) error
+	InvalidateCache(ctx context.Context, keys ...string) error
 }

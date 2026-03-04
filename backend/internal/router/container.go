@@ -78,7 +78,9 @@ func (c *Container) initOrders() {
 
 // initProducts 初始化商品模块的依赖
 func (c *Container) initProducts() {
-	repo := products2.NewPostgresRepo(c.db.DB())
+	pgRepo := products2.NewPostgresRepo(c.db.DB())
+	redisCache := products2.NewProductRedisCache(c.redis.Cache())
+	repo := products2.NewProductCacheDecorator(pgRepo, redisCache)
 	svc := products2.NewService(repo)
 	c.ProductHandler = products2.NewHandler(svc)
 }
